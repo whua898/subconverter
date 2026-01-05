@@ -2,10 +2,10 @@
 
 在各种订阅格式之间进行转换的实用程序.
 
-[![Build Status](https://github.com/tindy2013/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/tindy2013/subconverter/actions)
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/tindy2013/subconverter.svg)](https://github.com/tindy2013/subconverter/tags)
-[![GitHub release](https://img.shields.io/github/release/tindy2013/subconverter.svg)](https://github.com/tindy2013/subconverter/releases)
-[![GitHub license](https://img.shields.io/github/license/tindy2013/subconverter.svg)](https://github.com/tindy2013/subconverter/blob/master/LICENSE)
+[![Build Status](https://github.com/whua898/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/whua898/subconverter/actions)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/whua898/subconverter.svg)](https://github.com/whua898/subconverter/tags)
+[![GitHub release](https://img.shields.io/github/release/whua898/subconverter.svg)](https://github.com/whua898/subconverter/releases)
+[![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/tindy2013/subconverter/blob/master/LICENSE)
 
 * * *
 
@@ -912,7 +912,9 @@ exclude=(流量|官网)
     ruleset=🎯 全球直连,[]GEOIP,CN
     # 表示引用 GEOIP 中关于中国的所有 IP
     # 且将此规则指向 [proxy_group] 所设置 🎯 全球直连 策略组
-    ruleset=!!import:snippets/rulesets.txt
+    ruleset=🐟 漏网之鱼,[]FINAL
+
+    ;ruleset=!!import:snippets/rulesets.txt
     # 表示引用本地的snippets/rulesets.txt规则
     ```
 
