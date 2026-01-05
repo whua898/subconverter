@@ -1958,8 +1958,6 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
 
     if (ext.enable_rule_generator)
         rulesetToSurge(ini, ruleset_content_array, -4, ext.overwrite_original_rules, ext.managed_config_prefix);
-
-    return ini.to_string();
 }
 
 static std::string formatSingBoxInterval(Integer interval) {
