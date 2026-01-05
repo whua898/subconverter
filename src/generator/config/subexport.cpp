@@ -2340,7 +2340,7 @@ proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json,
     }
 
     if (ext.enable_rule_generator)
-        rulesetToSingBox(route, ruleset_content_array, ext.overwrite_original_rules);
+        rulesetToSingBox(json, ruleset_content_array, ext.overwrite_original_rules);
 
     json.AddMember("outbounds", outbounds, allocator);
     json.AddMember("route", route, allocator);
@@ -3156,6 +3156,38 @@ std::string proxyToSingBox(std::vector<Proxy> &nodes, const std::string &base_co
         return json | SerializeObject();
 
     rulesetToSingBox(json, ruleset_content_array, ext.overwrite_original_rules);
+
+    return json | SerializeObject();
+}
+
+std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
+                        std::vector<RulesetContent> &ruleset_content_array,
+                        const ProxyGroupConfigs &extra_proxy_group,
+                        extra_settings &ext) {
+    using namespace rapidjson_ext;
+    rapidjson::Document json;
+
+    if (!ext.nodelist) {
+        json.Parse(base_conf.data());
+        if (json.HasParseError()) {
+            writeLog(0, "loon base loader failed with error: " +
+                        std::string(rapidjson::GetParseError_En(json.GetParseError())), LOG_LEVEL_ERROR);
+            return "";
+        }
+    } else {
+        json.SetObject();
+    }
+
+    proxyToLoon(nodes, json, ruleset_content_array, extra_proxy_group, ext);
+
+    if (ext.nodelist || !ext.enable_rule_generator)
+        return json | SerializeObject();
+
+    rulesetToLoon(json, ruleset_content_array, ext.overwrite_original_rules);
+
+    rapidjson::Value route(rapidjson::kObjectType);
+    route.AddMember("rules", json["rules"], json.GetAllocator());
+    json.AddMember("route", route, json.GetAllocator());
 
     return json | SerializeObject();
 }
