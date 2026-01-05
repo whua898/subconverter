@@ -137,7 +137,8 @@ bool applyMatcher(const std::string &rule, std::string &real_rule, const Proxy &
         {ProxyType::WireGuard, "WIREGUARD"},
         {ProxyType::VLESS, "VLESS"},
         {ProxyType::Hysteria, "HYSTERIA"},
-        {ProxyType::Hysteria2, "HYSTERIA2"}
+        {ProxyType::Hysteria2, "HYSTERIA2"},
+        {ProxyType::TUIC, "TUIC"}
     };
     if (startsWith(rule, "!!GROUP=")) {
         regGetMatch(rule, group_regex, 3, 0, &target, &ret_real_rule);
@@ -1203,10 +1204,10 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
 }
 
 std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &ext) {
-    /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32
+    /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32,tuic=64
     std::string proxyStr, allLinks;
     bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria2 =
-            GETBIT(types, 5), vless = GETBIT(types, 6);
+            GETBIT(types, 5), vless = GETBIT(types, 6), tuic = GETBIT(types, 7);
 
     for (Proxy &x: nodes) {
         std::string remark = x.Remark;
@@ -1368,6 +1369,27 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                     if (!path.empty())
                         proxyStr += "&wspath=" + urlEncode(path);
                 }
+                proxyStr += "#" + urlEncode(remark);
+                break;
+            case ProxyType::TUIC:
+                if (!tuic)
+                    continue;
+                proxyStr = "tuic://" + x.UserId + ":" + x.Password + "@" + hostname + ":" + port + "?";
+                if (!x.CongestionControl.empty())
+                    proxyStr += "&congestion_control=" + x.CongestionControl;
+                if (!x.UdpRelayMode.empty())
+                    proxyStr += "&udp_relay_mode=" + x.UdpRelayMode;
+                if (!x.Alpn.empty())
+                    proxyStr += "&alpn=" + x.Alpn;
+                if (!x.ServerName.empty())
+                    proxyStr += "&sni=" + x.ServerName;
+                if (x.AllowInsecure.get())
+                    proxyStr += "&allow_insecure=1";
+                if (x.DisableSni.get())
+                    proxyStr += "&disable_sni=1";
+                if (x.ReduceRtt.get())
+                    proxyStr += "&reduce_rtt=1";
+
                 proxyStr += "#" + urlEncode(remark);
                 break;
             default:
@@ -1868,8 +1890,10 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
     ini.erase_section();
 
     for (const ProxyGroupConfig &x: extra_proxy_group) {
+        string_array filtered_nodelist;
         std::string type;
         string_array filtered_nodelist;
+        std::string group, group_extra;
 
         switch (x.Type) {
             case ProxyGroupType::Select:

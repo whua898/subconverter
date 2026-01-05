@@ -309,6 +309,7 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
         case "v2ray"_hash:
         case "trojan"_hash:
         case "mixed"_hash:
+        case "tuic"_hash:
             lSimpleSubscription = true;
             break;
         case "clash"_hash:
@@ -824,9 +825,15 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
             if (argUpload)
                 uploadGist("hysteria2", argUploadPath, output_content, false);
             break;
+        case "tuic"_hash:
+            writeLog(0, "Generate target: tuic", LOG_LEVEL_INFO);
+            output_content = proxyToSingle(nodes, 64, ext);
+            if (argUpload)
+                uploadGist("tuic", argUploadPath, output_content, false);
+            break;
         case "mixed"_hash:
             writeLog(0, "Generate target: Standard Subscription", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 63, ext);
+            output_content = proxyToSingle(nodes, 127, ext);
             if (argUpload)
                 uploadGist("sub", argUploadPath, output_content, false);
             break;

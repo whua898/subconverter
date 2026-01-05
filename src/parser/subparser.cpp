@@ -3122,9 +3122,9 @@ void explodeSingbox(rapidjson::Value &outbounds, std::vector<Proxy> &nodes) {
 }
 
 void explodeTuic(const std::string &tuic, Proxy &node) {
-    std::string add, port, password, host, insecure, alpn, remarks, sni, ports, congestion_control;
+    std::string add, port, password, host, insecure, alpn, remarks, sni, ports, congestion_control, udp_relay_mode;
     std::string addition;
-    tribool scv;
+    tribool scv, reduce_rtt, disable_sni;
     std::string link = tuic.substr(7);
     string_size pos;
 
@@ -3157,14 +3157,7 @@ void explodeTuic(const std::string &tuic, Proxy &node) {
     pos = link.find(":");
     if (pos != std::string::npos) {
         add = link.substr(0, pos);
-        link = link.substr(pos + 1);
-        pos = link.find("?");
-        if (pos != std::string::npos) {
-            port = link.substr(0, pos);
-            addition = link.substr(pos + 1);
-        } else {
-            port = link;
-        }
+        port = link.substr(pos + 1);
     }
 
 
@@ -3172,12 +3165,16 @@ void explodeTuic(const std::string &tuic, Proxy &node) {
     alpn = getUrlArg(addition, "alpn");
     sni = getUrlArg(addition, "sni");
     congestion_control = getUrlArg(addition, "congestion_control");
+    udp_relay_mode = getUrlArg(addition, "udp_relay_mode");
+    reduce_rtt = getUrlArg(addition, "reduce_rtt");
+    disable_sni = getUrlArg(addition, "disable_sni");
+
     if (remarks.empty())
         remarks = add + ":" + port;
-    tuicConstruct(node, TUIC_DEFAULT_GROUP, remarks, add, port, password, congestion_control, alpn, sni, uuid, "native",
+    tuicConstruct(node, TUIC_DEFAULT_GROUP, remarks, add, port, password, congestion_control, alpn, sni, uuid, udp_relay_mode,
                   "",
                   tribool(),
-                  tribool(), scv);
+                  tribool(), scv, reduce_rtt, disable_sni);
 
     return;
 }
