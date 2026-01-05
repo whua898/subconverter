@@ -2002,3 +2002,280 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
 
     return json | SerializeObject();
 }
+
+std::string proxyToMellow(std::vector<Proxy> &nodes, const std::string &base_conf,
+                          std::vector<RulesetContent> &ruleset_content_array,
+                          const ProxyGroupConfigs &extra_proxy_group,
+                          extra_settings &ext) {
+    INIReader ini;
+    ini.store_any_line = true;
+    ini.add_direct_save_section("common");
+    ini.add_direct_save_section("update-task");
+    ini.add_direct_save_section("task");
+    ini.add_direct_save_section("filter");
+    ini.add_direct_save_section("rewrite");
+    ini.add_direct_save_section("mitm");
+    ini.add_direct_save_section("script");
+    
+    if (ini.parse(base_conf) != 0 && !ext.nodelist) {
+        writeLog(0, "Mellow base loader failed with error: " + ini.get_last_error(), LOG_LEVEL_ERROR);
+        return "";
+    }
+
+    proxyToMellow(nodes, ini, ruleset_content_array, extra_proxy_group, ext);
+
+    if (ext.nodelist)
+        return "";
+
+    if (ext.enable_rule_generator)
+        rulesetToMellow(ini, ruleset_content_array, ext.overwrite_original_rules);
+
+    return ini.to_string();
+}
+
+void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini,
+                   std::vector<RulesetContent> &ruleset_content_array,
+                   const ProxyGroupConfigs &extra_proxy_group,
+                   extra_settings &ext) {
+    // 这里是 Mellow 格式的代理配置实现
+    std::string proxyStr;
+    tribool udp, tfo, scv;
+    std::vector<Proxy> nodelist;
+    string_array remarks_list;
+
+    ini.set_current_section("Proxy");
+    ini.erase_section();
+    for (Proxy &x: nodes) {
+        if (ext.append_proxy_type) {
+            std::string type = getProxyTypeName(x.Type);
+            x.Remark = "[" + type + "] " + x.Remark;
+        }
+
+        processRemark(x.Remark, remarks_list);
+
+        std::string &hostname = x.Hostname, &method = x.EncryptMethod, &id = x.UserId, &transproto = x.TransferProtocol,
+                &host = x.Host, &path = x.Path, &password = x.Password, &plugin = x.Plugin, &pluginopts = x.PluginOption
+                , &protocol = x.Protocol, &protoparam = x.ProtocolParam, &obfs = x.OBFS, &obfsparam = x.OBFSParam, &
+                        username = x.Username;
+        std::string port = std::to_string(x.Port);
+        bool &tlssecure = x.TLSSecure;
+
+        udp = ext.udp;
+        tfo = ext.tfo;
+        scv = ext.skip_cert_verify;
+        udp.define(x.UDP);
+        tfo.define(x.TCPFastOpen);
+        scv.define(x.AllowInsecure);
+
+        switch (x.Type) {
+            case ProxyType::VMess:
+                if (method == "auto")
+                    method = "chacha20-ietf-poly1305";
+                proxyStr = "vmess, " + hostname + ", " + port + ", " + id + ", " + method;
+                if (x.AlterId != 0)
+                    proxyStr += ", aead=false";
+                if (tlssecure)
+                    proxyStr += ", tls=" + std::string(tlssecure ? "true" : "false");
+                if (!host.empty())
+                    proxyStr += ", host=" + host;
+                if (!path.empty())
+                    proxyStr += ", path=" + path;
+                if (!transproto.empty())
+                    proxyStr += ", net=" + transproto;
+                break;
+            case ProxyType::Shadowsocks:
+                proxyStr = "shadowsocks, " + hostname + ", " + port + ", " + method + ", " + password;
+                if (!plugin.empty()) {
+                    switch (hash_(plugin)) {
+                        case "simple-obfs"_hash:
+                        case "obfs-local"_hash:
+                            if (!pluginopts.empty()) {
+                                string_array opts = split(pluginopts, ";");
+                                for (const std::string &y : opts) {
+                                    string_array arg = split(y, "=");
+                                    if (arg.size() == 2) {
+                                        if (arg[0] == "obfs")
+                                            proxyStr += ", obfs=" + arg[1];
+                                        else if (arg[0] == "obfs-host")
+                                            proxyStr += ", host=" + arg[1];
+                                        else if (arg[0] == "path")
+                                            proxyStr += ", path=" + arg[1];
+                                    }
+                                }
+                            }
+                            break;
+                        default:
+                            continue;
+                    }
+                }
+                break;
+            case ProxyType::HTTP:
+            case ProxyType::HTTPS:
+                proxyStr = "http, " + hostname + ", " + port;
+                if (!username.empty())
+                    proxyStr += ", " + username + ", " + password;
+                if (tlssecure)
+                    proxyStr += ", over-tls=true, tls-name=" + host;
+                break;
+            case ProxyType::Trojan:
+                proxyStr = "trojan, " + hostname + ", " + port + ", " + password;
+                if (tlssecure)
+                    proxyStr += ", over-tls=true, tls-name=" + host;
+                break;
+            case ProxyType::SOCKS5:
+                proxyStr = "socks5, " + hostname + ", " + port;
+                if (!username.empty() && !password.empty())
+                    proxyStr += ", " + username + ", " + password;
+                break;
+            case ProxyType::TUIC:
+                proxyStr = "tuic, " + hostname + ", " + port + ", " + x.Password + ", " + x.UserId;
+                if (!x.CongestionControl.empty())
+                    proxyStr += ", congestion-control=" + x.CongestionControl;
+                if (!x.ServerName.empty())
+                    proxyStr += ", sni=" + x.ServerName;
+                if (!scv.is_undef())
+                    proxyStr += ", skip-cert-verify=" + scv.get_str();
+                if (!x.Alpn.empty())
+                    proxyStr += ", alpn=" + x.Alpn;
+                break;
+            default:
+                continue;
+        }
+        if (!tfo.is_undef())
+            proxyStr += ", tfo=" + tfo.get_str();
+        if (!udp.is_undef())
+            proxyStr += ", udp=" + udp.get_str();
+        if (tlssecure && !scv.is_undef())
+            proxyStr += ", skip-cert-verify=" + scv.get_str();
+        proxyStr += ", alias=" + x.Remark;
+
+        ini.set("{NONAME}", proxyStr);
+        remarks_list.emplace_back(x.Remark);
+        nodelist.emplace_back(x);
+    }
+
+    if (ext.nodelist)
+        return;
+
+    string_multimap original_groups;
+    ini.set_current_section("Rule");
+    ini.get_items(original_groups);
+    ini.erase_section();
+
+    for (const ProxyGroupConfig &x: extra_proxy_group) {
+        string_array filtered_nodelist;
+        std::string type;
+        std::string group, group_extra;
+
+        switch (x.Type) {
+            case ProxyGroupType::Select:
+            case ProxyGroupType::URLTest:
+            case ProxyGroupType::Fallback:
+                break;
+            default:
+                continue;
+        }
+
+        for (const auto &y: x.Proxies)
+            groupGenerate(y, nodelist, filtered_nodelist, true, ext);
+
+        if (filtered_nodelist.empty())
+            filtered_nodelist.emplace_back("DIRECT");
+
+        group = x.TypeStr() + ", ";
+        group += join(filtered_nodelist, ", ");
+        if (x.Type != ProxyGroupType::Select) {
+            group += ", url=" + x.Url + ", interval=" + std::to_string(x.Interval);
+        }
+
+        ini.set("{NONAME}", x.Name + " = " + group); //insert order
+    }
+}
+
+std::string proxyToSSD(std::vector<Proxy> &nodes, std::string &group, std::string &userinfo, extra_settings &ext) {
+    rapidjson::StringBuffer sb;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+    
+    writer.StartObject();
+    
+    writer.Key("airport");
+    writer.String(group.c_str());
+    writer.Key("port");
+    writer.Int(1);
+    writer.Key("encryption");
+    writer.String("aes-128-gcm");
+    writer.Key("password");
+    writer.String("password");
+    
+    writer.Key("servers");
+    writer.StartArray();
+    
+    for (Proxy &x: nodes) {
+        writer.StartObject();
+        writer.Key("id");
+        writer.Int(1);
+        writer.Key("remarks");
+        writer.String(x.Remark.c_str());
+        writer.Key("server");
+        writer.String(x.Hostname.c_str());
+        writer.Key("server_port");
+        writer.Uint(x.Port);
+        writer.Key("password");
+        writer.String(x.Password.c_str());
+        
+        switch (x.Type) {
+            case ProxyType::Shadowsocks:
+                writer.Key("method");
+                writer.String(x.EncryptMethod.c_str());
+                break;
+            case ProxyType::VMess:
+                writer.Key("method");
+                writer.String("chacha20-ietf-poly1305");
+                break;
+            case ProxyType::TUIC:
+                writer.Key("method");
+                writer.String("tuic");
+                writer.Key("uuid");
+                writer.String(x.UserId.c_str());
+                writer.Key("token");
+                writer.String(x.Password.c_str());
+                if (!x.CongestionControl.empty()) {
+                    writer.Key("congestion_control");
+                    writer.String(x.CongestionControl.c_str());
+                }
+                if (!x.ServerName.empty()) {
+                    writer.Key("sni");
+                    writer.String(x.ServerName.c_str());
+                }
+                if (!x.Alpn.empty()) {
+                    writer.Key("alpn");
+                    writer.String(x.Alpn.c_str());
+                }
+                break;
+            default:
+                writer.Key("method");
+                writer.String("aes-128-gcm");
+                break;
+        }
+        
+        if (!x.Plugin.empty() && !x.PluginOption.empty()) {
+            writer.Key("plugin");
+            writer.String(x.Plugin.c_str());
+            writer.Key("plugin_opts");
+            writer.String(x.PluginOption.c_str());
+        }
+        
+        writer.EndObject();
+    }
+    
+    writer.EndArray();
+    
+    if (!userinfo.empty()) {
+        writer.Key("userinfo");
+        writer.String(userinfo.c_str());
+    }
+    
+    writer.EndObject();
+    
+    return sb.GetString();
+}
