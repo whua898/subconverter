@@ -624,3 +624,129 @@ void rulesetToSingBox(rapidjson::Document &base_rule, std::vector<RulesetContent
     | AddMemberOrReplace("rules", rules, allocator)
     | AddMemberOrReplace("final", finalValue, allocator);
 }
+
+void rulesetToMellow(INIReader &base_rule, std::vector<RulesetContent> &ruleset_content_array, bool overwrite_original_rules)
+{
+    string_array allRules;
+    std::string rule_group, retrieved_rules, strLine;
+    std::stringstream strStrm;
+    string_multimap original_rules;
+    std::vector<std::string_view> temp(4);
+
+    if(!overwrite_original_rules)
+    {
+        base_rule.set_current_section("Rule");
+        base_rule.get_items(original_rules);
+    }
+
+    for(RulesetContent &x : ruleset_content_array)
+    {
+        rule_group = x.rule_group;
+        retrieved_rules = x.rule_content.get();
+        if(retrieved_rules.empty())
+        {
+            writeLog(0, "Failed to fetch ruleset or ruleset is empty: '" + x.rule_path + "'!", LOG_LEVEL_WARNING);
+            continue;
+        }
+        if(startsWith(retrieved_rules, "[]"))
+        {
+            strLine = retrieved_rules.substr(2);
+            allRules.emplace_back(strLine + ", " + rule_group);
+            continue;
+        }
+        retrieved_rules = convertRuleset(retrieved_rules, x.rule_type);
+        char delimiter = getLineBreak(retrieved_rules);
+
+        strStrm.clear();
+        strStrm<<retrieved_rules;
+        std::string::size_type lineSize;
+        while(getline(strStrm, strLine, delimiter))
+        {
+            strLine = trimWhitespace(strLine, true, true); //remove whitespaces
+            lineSize = strLine.size();
+            if(!lineSize || strLine[0] == ';' || strLine[0] == '#' || (lineSize >= 2 && strLine[0] == '/' && strLine[1] == '/')) //empty lines and comments are ignored
+                continue;
+            if(std::none_of(SurgeRuleTypes.begin(), SurgeRuleTypes.end(), [strLine](const std::string& type){return startsWith(strLine, type);}))
+                continue;
+            if(strFind(strLine, "//"))
+            {
+                strLine.erase(strLine.find("//"));
+                strLine = trimWhitespace(strLine);
+            }
+            allRules.emplace_back(transformRuleToCommon(temp, strLine, rule_group));
+        }
+    }
+
+    base_rule.set_current_section("Rule");
+    if(overwrite_original_rules)
+        base_rule.erase_section();
+
+    for(auto &x : original_rules)
+        allRules.emplace_back(x.first + ", " + x.second);
+
+    for(std::string &x : allRules)
+        base_rule.set("{NONAME}", x);
+}
+
+void rulesetToLoon(INIReader &base_rule, std::vector<RulesetContent> &ruleset_content_array, bool overwrite_original_rules)
+{
+    string_array allRules;
+    std::string rule_group, retrieved_rules, strLine;
+    std::stringstream strStrm;
+    string_multimap original_rules;
+    std::vector<std::string_view> temp(4);
+
+    if(!overwrite_original_rules)
+    {
+        base_rule.set_current_section("Rule");
+        base_rule.get_items(original_rules);
+    }
+
+    for(RulesetContent &x : ruleset_content_array)
+    {
+        rule_group = x.rule_group;
+        retrieved_rules = x.rule_content.get();
+        if(retrieved_rules.empty())
+        {
+            writeLog(0, "Failed to fetch ruleset or ruleset is empty: '" + x.rule_path + "'!", LOG_LEVEL_WARNING);
+            continue;
+        }
+        if(startsWith(retrieved_rules, "[]"))
+        {
+            strLine = retrieved_rules.substr(2);
+            allRules.emplace_back(strLine + ", " + rule_group);
+            continue;
+        }
+        retrieved_rules = convertRuleset(retrieved_rules, x.rule_type);
+        char delimiter = getLineBreak(retrieved_rules);
+
+        strStrm.clear();
+        strStrm<<retrieved_rules;
+        std::string::size_type lineSize;
+        while(getline(strStrm, strLine, delimiter))
+        {
+            strLine = trimWhitespace(strLine, true, true); //remove whitespaces
+            lineSize = strLine.size();
+            if(!lineSize || strLine[0] == ';' || strLine[0] == '#' || (lineSize >= 2 && strLine[0] == '/' && strLine[1] == '/')) //empty lines and comments are ignored
+                continue;
+            if(std::none_of(SurgeRuleTypes.begin(), SurgeRuleTypes.end(), [strLine](const std::string& type){return startsWith(strLine, type);}))
+                continue;
+            if(strFind(strLine, "//"))
+            {
+                strLine.erase(strLine.find("//"));
+                strLine = trimWhitespace(strLine);
+            }
+            allRules.emplace_back(transformRuleToCommon(temp, strLine, rule_group));
+        }
+    }
+
+    base_rule.set_current_section("Rule");
+    if(overwrite_original_rules)
+        base_rule.erase_section();
+
+    for(auto &x : original_rules)
+        allRules.emplace_back(x.first + ", " + x.second);
+
+    for(std::string &x : allRules)
+        base_rule.set("{NONAME}", x);
+}
