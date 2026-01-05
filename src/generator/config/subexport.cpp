@@ -1025,8 +1025,6 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                     proxy += ", username=" + username;
                 if (!password.empty()) {
                     proxy += ", password=" + password;
-                    if (std::all_of(x.Password.begin(), x.Password.end(), ::isdigit))
-                        singleproxy["password"].SetTag("str");
                 }
                 if (!scv.is_undef())
                     proxy += ", skip-cert-verify=" + scv.get_str();
