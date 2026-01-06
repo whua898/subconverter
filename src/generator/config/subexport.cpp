@@ -1207,9 +1207,11 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
 
 std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &ext) {
     /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32,tuic=64
+    /// Bit 8 (value 128) reserved for Mixed type indicator
     std::string proxyStr, allLinks;
     bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria2 =
             GETBIT(types, 5), vless = GETBIT(types, 6), tuic = GETBIT(types, 7);
+    bool isMixedType = GETBIT(types, 8); // Bit 8 indicates Mixed type
 
     for (Proxy &x: nodes) {
         std::string remark = x.Remark;
@@ -1394,6 +1396,86 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
 
                 proxyStr += "#" + urlEncode(remark);
                 break;
+            case ProxyType::HTTP:
+            case ProxyType::HTTPS:
+                // HTTP/HTTPS协议支持 - 只在Mixed类型中包含
+                if (isMixedType) {
+                    proxyStr = (x.Type == ProxyType::HTTP ? "http://" : "https://");
+                    if (!x.Username.empty() && !x.Password.empty()) {
+                        proxyStr += urlSafeBase64Encode(x.Username) + ":" + urlSafeBase64Encode(x.Password) + "@";
+                    }
+                    proxyStr += hostname + ":" + port;
+                    proxyStr += "#" + urlEncode(remark);
+                } else {
+                    continue; // V2Ray类型不包含HTTP/HTTPS
+                }
+                break;
+            case ProxyType::SOCKS5:
+                // SOCKS5协议支持 - 只在Mixed类型中包含
+                if (isMixedType) {
+                    proxyStr = "socks5://";
+                    if (!x.Username.empty() && !x.Password.empty()) {
+                        proxyStr += urlSafeBase64Encode(x.Username) + ":" + urlSafeBase64Encode(x.Password) + "@";
+                    }
+                    proxyStr += hostname + ":" + port;
+                    proxyStr += "#" + urlEncode(remark);
+                } else {
+                    continue; // V2Ray类型不包含SOCKS5
+                }
+                break;
+            case ProxyType::Snell:
+                // Snell协议支持 - 只在Mixed类型中包含
+                if (isMixedType) {
+                    proxyStr = "snell://" + password + "@" + hostname + ":" + port + "?";
+                    if (x.SnellVersion > 0) {
+                        proxyStr += "version=" + std::to_string(x.SnellVersion);
+                    }
+                    proxyStr += "#" + urlEncode(remark);
+                } else {
+                    continue; // V2Ray类型不包含Snell
+                }
+                break;
+            case ProxyType::Hysteria:
+                // Hysteria协议支持 - 只在Mixed类型中包含
+                if (isMixedType) {
+                    proxyStr = "hysteria://" + hostname + ":" + port + "?";
+                    if (!x.Auth.empty()) {
+                        proxyStr += "auth=" + x.Auth + "&";
+                    }
+                    if (!x.UpMbps.empty()) {
+                        proxyStr += "upmbps=" + x.UpMbps + "&";
+                    }
+                    if (!x.DownMbps.empty()) {
+                        proxyStr += "downmbps=" + x.DownMbps + "&";
+                    }
+                    if (!x.Ports.empty()) {
+                        proxyStr += "port=" + x.Ports + "&";
+                    }
+                    if (x.Insecure == "1") {
+                        proxyStr += "insecure=1&";
+                    }
+                    if (!x.FakeType.empty()) {
+                        proxyStr += "protocol=" + x.FakeType + "&";
+                    }
+                    if (!x.ServerName.empty()) {
+                        proxyStr += "sni=" + x.ServerName + "&";
+                    }
+                    // 移除末尾的&
+                    if (proxyStr.back() == '&') {
+                        proxyStr.pop_back();
+                    }
+                    proxyStr += "#" + urlEncode(remark);
+                } else {
+                    continue; // V2Ray类型不包含Hysteria
+                }
+                break;
+            case ProxyType::WireGuard:
+                // WireGuard协议不支持URL格式，跳过
+                continue;
+            case ProxyType::AnyTLS:
+            case ProxyType::Mieru:
+                // 这些协议不支持直接的URL格式，跳过
+                continue;
             default:
                 continue;
         }
@@ -1689,6 +1771,8 @@ std::string proxyToQuanX(std::vector<Proxy> &nodes, const std::string &base_conf
                          extra_settings &ext) {
     INIReader ini;
     ini.store_any_line = true;
+}
+
     ini.add_direct_save_section("general");
     ini.add_direct_save_section("dns");
     ini.add_direct_save_section("rewrite_remote");

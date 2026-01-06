@@ -802,8 +802,8 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
                 uploadGist("ssr", argUploadPath, output_content, false);
             break;
         case "v2ray"_hash:
-            writeLog(0, "Generate target: v2rayN (mixed protocols: vmess, vless, trojan, hysteria2, tuic, ss, ssr)", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 127, ext);
+            writeLog(0, "Generate target: v2rayN (V2RayN compatible protocols: vmess, vless, trojan, hysteria2, tuic, ss, ssr)", LOG_LEVEL_INFO);
+            output_content = proxyToSingle(nodes, 127, ext);  // V2RayN兼容协议，不包含Mixed标志
             if (argUpload)
                 uploadGist("v2ray", argUploadPath, output_content, false);
             break;
@@ -832,8 +832,8 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
                 uploadGist("tuic", argUploadPath, output_content, false);
             break;
         case "mixed"_hash:
-            writeLog(0, "Generate target: Standard Subscription", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 127, ext);
+            writeLog(0, "Generate target: Standard Subscription (all supported protocols)", LOG_LEVEL_INFO);
+            output_content = proxyToSingle(nodes, 127 | 128, ext);  // 127 + 128，包含Mixed标志
             if (argUpload)
                 uploadGist("sub", argUploadPath, output_content, false);
             break;
