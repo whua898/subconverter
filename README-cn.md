@@ -7,6 +7,54 @@
 [![GitHub release](https://img.shields.io/github/release/whua898/subconverter.svg)](https://github.com/whua898/subconverter/releases)
 [![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/tindy2013/subconverter/blob/master/LICENSE)
 
+[English README](https://github.com/whua898/subconverter/blob/master/README-en.md)
+
+[Docker README](https://github.com/whua898/subconverter/blob/master/README-docker.md)
+
+* * *
+
+## 自用构建优化说明
+
+**重要说明**：针对自用转换器的编译优化改动
+
+为了加快自用编译速度，项目中进行了以下优化改动：
+
+1. **工作流文件** ([.github/workflows/build.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/build.yml), [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml)) 中注释掉了ARM架构相关的构建任务以节省时间
+
+### 如何重新启用ARM架构构建
+
+**重新启用ARM架构构建**：
+- 编辑 [.github/workflows/build.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/build.yml) 文件，取消注释以下部分：
+  ```yaml
+  # - arch: armv7
+  #   artifact: subconverter_armv7
+  #   os: ubuntu-latest
+  # - arch: aarch64
+  #   artifact: subconverter_aarch64
+  #   os: ubuntu-latest
+  ```
+- 编辑 [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml) 文件，取消注释以下部分：
+  ```yaml
+  # - platform: linux/arm/v7
+  #   os: ubuntu-latest
+  # - platform: linux/arm64
+  #   os: ubuntu-latest
+  ```
+
+* * *
+
+  # - arch: aarch64
+  #   artifact: subconverter_aarch64
+  #   os: ubuntu-latest
+  ```
+- 编辑 [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml) 文件，取消注释以下部分：
+  ```yaml
+  # - platform: linux/arm/v7
+  #   os: ubuntu-latest
+  # - platform: linux/arm64
+  #   os: ubuntu-latest
+  ```
+
 * * *
 
 ## 新增内容

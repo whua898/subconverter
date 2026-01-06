@@ -1,17 +1,47 @@
 # subconverter
 
-Utility to convert between various proxy subscription formats.
+A command-line utility that converts between different proxy subscription formats.
 
-original git: https://github.com/asdlokj1qpi23/subconverter
-
-[![Build Status](https://github.com/whua898/subconverter/actions/workflows/docker.yml/badge.svg)](https://github.com/whua898/subconverter/actions)
+[![Build Status](https://github.com/whua898/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/whua898/subconverter/actions)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/whua898/subconverter.svg)](https://github.com/whua898/subconverter/tags)
 [![GitHub release](https://img.shields.io/github/release/whua898/subconverter.svg)](https://github.com/whua898/subconverter/releases)
 [![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/tindy2013/subconverter/blob/master/LICENSE)
 
 [Docker README](https://github.com/whua898/subconverter/blob/master/README-docker.md)
 
-[中文文档](https://github.com/whua898/subconverter/blob/master/README-cn.md)
+[中文说明](https://github.com/whua898/subconverter/blob/master/README-cn.md)
+
+* * *
+
+## Self-Use Build Optimization Notes
+
+**Important Note**: Compilation optimization changes for self-use converters
+
+To speed up self-use compilation, the following optimization changes have been made to the project:
+
+1. **Workflow files** ([.github/workflows/build.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/build.yml), [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml)) commented out ARM architecture related build tasks to save time
+
+### How to Re-enable ARM Architecture Builds
+
+**Re-enable ARM architecture builds**:
+- Edit [.github/workflows/build.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/build.yml) file and uncomment the following:
+  ```yaml
+  # - arch: armv7
+  #   artifact: subconverter_armv7
+  #   os: ubuntu-latest
+  # - arch: aarch64
+  #   artifact: subconverter_aarch64
+  #   os: ubuntu-latest
+  ```
+- Edit [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml) file and uncomment the following:
+  ```yaml
+  # - platform: linux/arm/v7
+  #   os: ubuntu-latest
+  # - platform: linux/arm64
+  #   os: ubuntu-latest
+  ```
+
+* * *
 
 - [subconverter](#subconverter)
   - [Docker](#docker)

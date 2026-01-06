@@ -25,10 +25,11 @@ jobs:
             os: ubuntu-latest
           - platform: linux/386
             os: ubuntu-latest
-          - platform: linux/arm/v7
-            os: ubuntu-latest
-          - platform: linux/arm64
-            os: ubuntu-latest
+          # For self-use builds, ARM compilation is commented out to save time
+          # - platform: linux/arm/v7
+          #   os: ubuntu-latest
+          # - platform: linux/arm64
+          #   os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     name: Build ${{ matrix.platform }} Image
     steps:
