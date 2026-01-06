@@ -1008,11 +1008,14 @@ void readConf()
         refresh_schedule();
     }
 
-    ini.enter_section("server");
-    ini.get_if_exist("listen", global.listenAddress);
-    ini.get_int_if_exist("port", global.listenPort);
-    webServer.serve_file_root = ini.get("serve_file_root");
-    webServer.serve_file = !webServer.serve_file_root.empty();
+    if(ini.section_exist("server"))
+    {
+        ini.enter_section("server");
+        ini.get_if_exist("listen", global.listenAddress);
+        ini.get_int_if_exist("port", global.listenPort);
+        webServer.serve_file_root = ini.get("serve_file_root");
+        webServer.serve_file = !webServer.serve_file_root.empty();
+    }
 
     ini.enter_section("advanced");
     std::string log_level;
@@ -1066,6 +1069,9 @@ void readConf()
     ini.get_bool_if_exist("script_clean_context", global.scriptCleanContext);
     ini.get_bool_if_exist("async_fetch_ruleset", global.asyncFetchRuleset);
     ini.get_bool_if_exist("skip_failed_links", global.skipFailedLinks);
+
+    // Set default short link address
+    global.shortLinkUrl = "short.wh8.xx.kg";
 
     writeLog(0, "Load preference settings in INI format completed.", LOG_LEVEL_INFO);
 }

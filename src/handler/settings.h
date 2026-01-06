@@ -70,6 +70,9 @@ struct Settings
     //cron system
     bool enableCron = false;
     CronTaskConfigs cronTasks;
+
+    //short link
+    std::string shortLinkUrl;
 };
 
 

@@ -802,8 +802,8 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
                 uploadGist("ssr", argUploadPath, output_content, false);
             break;
         case "v2ray"_hash:
-            writeLog(0, "Generate target: v2rayN", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 4, ext);
+            writeLog(0, "Generate target: v2rayN (mixed protocols: vmess, vless, trojan, hysteria2, tuic, ss, ssr)", LOG_LEVEL_INFO);
+            output_content = proxyToSingle(nodes, 127, ext);
             if (argUpload)
                 uploadGist("v2ray", argUploadPath, output_content, false);
             break;
