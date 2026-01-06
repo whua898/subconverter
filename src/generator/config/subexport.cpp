@@ -1776,7 +1776,6 @@ std::string proxyToQuanX(std::vector<Proxy> &nodes, const std::string &base_conf
                          extra_settings &ext) {
     INIReader ini;
     ini.store_any_line = true;
-}
 
     ini.add_direct_save_section("general");
     ini.add_direct_save_section("dns");
