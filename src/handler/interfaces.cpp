@@ -833,7 +833,7 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
             break;
         case "mixed"_hash:
             writeLog(0, "Generate target: Standard Subscription (all supported protocols: SS, SSR, VMess, Trojan, Hysteria2, VLESS, TUIC, HTTP, HTTPS, SOCKS5, Snell, Hysteria)", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 32767, ext);  // 所有支持的协议 (使用足够大的值覆盖所有协议类型)
+            output_content = proxyToSingle(nodes, 4095, ext);  // 所有支持的协议 (SS=1, SSR=2, VMess=4, Trojan=8, Hysteria2=16, VLESS=32, TUIC=64, HTTP=128, HTTPS=256, SOCKS5=512, Snell=1024, Hysteria=2048)
             if (argUpload)
                 uploadGist("sub", argUploadPath, output_content, false);
             break;
