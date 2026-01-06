@@ -803,7 +803,7 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
             break;
         case "v2ray"_hash:
             writeLog(0, "Generate target: v2rayN (V2RayN compatible protocols: vmess, vless, trojan, hysteria2, tuic, ss, ssr)", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 127, ext);  // V2RayN兼容协议 (SS=1, SSR=2, VMess=4, Trojan=8, Hysteria2=16, VLESS=32, TUIC=64)
+            output_content = proxyToSingle(nodes, 4095, ext);  // V2RayN兼容协议 (SS=1, SSR=2, VMess=4, Trojan=8, Hysteria2=16, VLESS=32, TUIC=64)
             if (argUpload)
                 uploadGist("v2ray", argUploadPath, output_content, false);
             break;

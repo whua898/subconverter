@@ -1208,12 +1208,27 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
 std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &ext) {
     /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32,tuic=64,HTTP=128,HTTPS=256,SOCKS5=512,Snell=1024,Hysteria=2048,WireGuard=4096,AnyTLS=8192,Mieru=16384
     std::string proxyStr, allLinks;
-    bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria2 =
-            GETBIT(types, 5), vless = GETBIT(types, 6), tuic = GETBIT(types, 7);
-    bool http = GETBIT(types, 8), https = GETBIT(types, 9), socks5 = GETBIT(types, 10), snell = GETBIT(types, 11),
-         hysteria = GETBIT(types, 12), wireguard = GETBIT(types, 13), anytls = GETBIT(types, 14), mieru = GETBIT(types, 15);
+    bool ss = (types & 1);
+    bool ssr = (types & 2);
+    bool vmess = (types & 4);
+    bool trojan = (types & 8);
+    bool hysteria2 = (types & 16);
+    bool vless = (types & 32);
+    bool tuic = (types & 64);
+    bool http = (types & 128);
+    bool https = (types & 256);
+    bool socks5 = (types & 512);
+    bool snell = (types & 1024);
+    bool hysteria = (types & 2048);
+    bool wireguard = (types & 4096);
+    bool anytls = (types & 8192);
+    bool mieru = (types & 16384);
+
+    // Hack: 如果开启了 VLESS，通常也应该开启 VMess，以防 types 参数传递错误
+    if (vless) vmess = true;
 
     for (Proxy &x: nodes) {
+        proxyStr = "";
         std::string remark = x.Remark;
         std::string &hostname = x.Hostname, &sni = x.ServerName, &password = x.Password, &method = x.EncryptMethod, &
                         plugin = x.Plugin, &pluginopts = x.PluginOption, &protocol = x.Protocol, &protoparam = x.
@@ -1776,7 +1791,6 @@ std::string proxyToQuanX(std::vector<Proxy> &nodes, const std::string &base_conf
                          extra_settings &ext) {
     INIReader ini;
     ini.store_any_line = true;
-
     ini.add_direct_save_section("general");
     ini.add_direct_save_section("dns");
     ini.add_direct_save_section("rewrite_remote");
