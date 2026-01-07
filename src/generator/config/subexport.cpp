@@ -4,7 +4,6 @@
 #include <cmath>
 #include <climits>
 
-
 #include "config/regmatch.h"
 #include "generator/config/subexport.h"
 #include "generator/template/templates.h"
@@ -356,8 +355,8 @@ proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGroupCo
                         break;
                     case "grpc"_hash:
                         singleproxy["network"] = x.TransferProtocol;
-                        singleproxy["servername"] = x.Host;
-                        singleproxy["grpc-opts"]["grpc-service-name"] = x.Path;
+                        singleproxy["grpc-opts"]["grpc-mode"] = x.GRPCMode;
+                        singleproxy["grpc-opts"]["grpc-service-name"] = x.GRPCServiceName;
                         break;
                     default:
                         continue;
@@ -1023,9 +1022,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy = "socks5, " + hostname + ", " + port;
                 if (!username.empty())
                     proxy += ", username=" + username;
-                if (!password.empty()) {
+                if (!password.empty())
                     proxy += ", password=" + password;
-                }
                 if (!scv.is_undef())
                     proxy += ", skip-cert-verify=" + scv.get_str();
                 break;
@@ -1206,29 +1204,12 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
 }
 
 std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &ext) {
-    /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32,tuic=64,HTTP=128,HTTPS=256,SOCKS5=512,Snell=1024,Hysteria=2048,WireGuard=4096,AnyTLS=8192,Mieru=16384
+    /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32,tuic=64
     std::string proxyStr, allLinks;
-    bool ss = (types & 1);
-    bool ssr = (types & 2);
-    bool vmess = (types & 4);
-    bool trojan = (types & 8);
-    bool hysteria2 = (types & 16);
-    bool vless = (types & 32);
-    bool tuic = (types & 64);
-    bool http = (types & 128);
-    bool https = (types & 256);
-    bool socks5 = (types & 512);
-    bool snell = (types & 1024);
-    bool hysteria = (types & 2048);
-    bool wireguard = (types & 4096);
-    bool anytls = (types & 8192);
-    bool mieru = (types & 16384);
-
-    // Hack: 如果开启了 VLESS，通常也应该开启 VMess，以防 types 参数传递错误
-    if (vless) vmess = true;
+    bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria2 =
+            GETBIT(types, 5), vless = GETBIT(types, 6), tuic = GETBIT(types, 7);
 
     for (Proxy &x: nodes) {
-        proxyStr = "";
         std::string remark = x.Remark;
         std::string &hostname = x.Hostname, &sni = x.ServerName, &password = x.Password, &method = x.EncryptMethod, &
                         plugin = x.Plugin, &pluginopts = x.PluginOption, &protocol = x.Protocol, &protoparam = x.
@@ -1411,91 +1392,6 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
 
                 proxyStr += "#" + urlEncode(remark);
                 break;
-            case ProxyType::HTTP:
-                if (!http)
-                    continue;
-                proxyStr = "http://";
-                if (!x.Username.empty() && !x.Password.empty()) {
-                    proxyStr += urlSafeBase64Encode(x.Username) + ":" + urlSafeBase64Encode(x.Password) + "@";
-                }
-                proxyStr += hostname + ":" + port;
-                proxyStr += "#" + urlEncode(remark);
-                break;
-            case ProxyType::HTTPS:
-                if (!https)
-                    continue;
-                proxyStr = "https://";
-                if (!x.Username.empty() && !x.Password.empty()) {
-                    proxyStr += urlSafeBase64Encode(x.Username) + ":" + urlSafeBase64Encode(x.Password) + "@";
-                }
-                proxyStr += hostname + ":" + port;
-                proxyStr += "#" + urlEncode(remark);
-                break;
-            case ProxyType::SOCKS5:
-                if (!socks5)
-                    continue;
-                proxyStr = "socks5://";
-                if (!x.Username.empty() && !x.Password.empty()) {
-                    proxyStr += urlSafeBase64Encode(x.Username) + ":" + urlSafeBase64Encode(x.Password) + "@";
-                }
-                proxyStr += hostname + ":" + port;
-                proxyStr += "#" + urlEncode(remark);
-                break;
-            case ProxyType::Snell:
-                if (!snell)
-                    continue;
-                proxyStr = "snell://" + password + "@" + hostname + ":" + port + "?";
-                if (x.SnellVersion > 0) {
-                    proxyStr += "version=" + std::to_string(x.SnellVersion);
-                }
-                proxyStr += "#" + urlEncode(remark);
-                break;
-            case ProxyType::Hysteria:
-                if (!hysteria)
-                    continue;
-                proxyStr = "hysteria://" + hostname + ":" + port + "?";
-                if (!x.Auth.empty()) {
-                    proxyStr += "auth=" + x.Auth + "&";
-                }
-                if (!x.UpMbps.empty()) {
-                    proxyStr += "upmbps=" + x.UpMbps + "&";
-                }
-                if (!x.DownMbps.empty()) {
-                    proxyStr += "downmbps=" + x.DownMbps + "&";
-                }
-                if (!x.Ports.empty()) {
-                    proxyStr += "port=" + x.Ports + "&";
-                }
-                if (x.Insecure == "1") {
-                    proxyStr += "insecure=1&";
-                }
-                if (!x.FakeType.empty()) {
-                    proxyStr += "protocol=" + x.FakeType + "&";
-                }
-                if (!x.ServerName.empty()) {
-                    proxyStr += "sni=" + x.ServerName + "&";
-                }
-                // 移除末尾的&
-                if (proxyStr.back() == '&') {
-                    proxyStr.pop_back();
-                }
-                proxyStr += "#" + urlEncode(remark);
-                break;
-            case ProxyType::WireGuard:
-                if (!wireguard)
-                    continue;
-                // WireGuard协议不支持URL格式，跳过
-                continue;
-            case ProxyType::AnyTLS:
-                if (!anytls)
-                    continue;
-                // AnyTLS协议不支持直接的URL格式，跳过
-                continue;
-            case ProxyType::Mieru:
-                if (!mieru)
-                    continue;
-                // Mieru协议不支持直接的URL格式，跳过
-                continue;
             default:
                 continue;
         }
@@ -1737,14 +1633,17 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
 
         switch (x.Type) {
             case ProxyGroupType::Select:
-            case ProxyGroupType::Smart:
-            case ProxyGroupType::URLTest:
             case ProxyGroupType::Fallback:
+                type = "static";
+                break;
+            case ProxyGroupType::URLTest:
+                type = "auto";
                 break;
             case ProxyGroupType::LoadBalance:
+                type = "balance, round-robin";
                 break;
             case ProxyGroupType::SSID: {
-                singlegroup = x.TypeStr() + ",default=" + x.Proxies[0] + ",";
+                singlegroup = x.Name + " : wifi = " + x.Proxies[0];
                 std::string content, celluar, celluar_matcher = R"(^(.*?),?celluar\s?=\s?(.*?)(,.*)$)", rem_a, rem_b;
                 for (auto iter = x.Proxies.begin() + 1; iter != x.Proxies.end(); iter++) {
                     if (regGetMatch(*iter, celluar_matcher, 4, 0, &rem_a, &celluar, &rem_b)) {
@@ -1782,7 +1681,7 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
     }
 
     if (ext.enable_rule_generator)
-        rulesetToSurge(ini, ruleset_content_array, -2, ext.overwrite_original_rules, ext.managed_config_prefix);
+        rulesetToSurge(ini, ruleset_content_array, -2, ext.overwrite_original_rules, "");
 }
 
 std::string proxyToQuanX(std::vector<Proxy> &nodes, const std::string &base_conf,
