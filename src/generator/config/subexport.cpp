@@ -2267,7 +2267,7 @@ std::string proxyToMellow(std::vector<Proxy> &nodes, const std::string &base_con
     ini.add_direct_save_section("rewrite");
     ini.add_direct_save_section("mitm");
     ini.add_direct_save_section("script");
-    
+
     if (ini.parse(base_conf) != 0 && !ext.nodelist) {
         writeLog(0, "Mellow base loader failed with error: " + ini.get_last_error(), LOG_LEVEL_ERROR);
         return "";
@@ -2445,9 +2445,9 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini,
 std::string proxyToSSD(std::vector<Proxy> &nodes, std::string &group, std::string &userinfo, extra_settings &ext) {
     rapidjson::StringBuffer sb;
     rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
-    
+
     writer.StartObject();
-    
+
     writer.Key("airport");
     writer.String(group.c_str());
     writer.Key("port");
@@ -2456,10 +2456,10 @@ std::string proxyToSSD(std::vector<Proxy> &nodes, std::string &group, std::strin
     writer.String("aes-128-gcm");
     writer.Key("password");
     writer.String("password");
-    
+
     writer.Key("servers");
     writer.StartArray();
-    
+
     for (Proxy &x: nodes) {
         writer.StartObject();
         writer.Key("id");
@@ -2472,7 +2472,7 @@ std::string proxyToSSD(std::vector<Proxy> &nodes, std::string &group, std::strin
         writer.Uint(x.Port);
         writer.Key("password");
         writer.String(x.Password.c_str());
-        
+
         switch (x.Type) {
             case ProxyType::Shadowsocks:
                 writer.Key("method");
@@ -2507,25 +2507,25 @@ std::string proxyToSSD(std::vector<Proxy> &nodes, std::string &group, std::strin
                 writer.String("aes-128-gcm");
                 break;
         }
-        
+
         if (!x.Plugin.empty() && !x.PluginOption.empty()) {
             writer.Key("plugin");
             writer.String(x.Plugin.c_str());
             writer.Key("plugin_opts");
             writer.String(x.PluginOption.c_str());
         }
-        
+
         writer.EndObject();
     }
-    
+
     writer.EndArray();
-    
+
     if (!userinfo.empty()) {
         writer.Key("userinfo");
         writer.String(userinfo.c_str());
     }
-    
+
     writer.EndObject();
-    
+
     return sb.GetString();
 }
