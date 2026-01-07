@@ -22,13 +22,12 @@ jobs:
           - arch: amd64
             artifact: subconverter_linux64
             os: ubuntu-latest
-          # For self-use builds, ARM compilation is commented out to save time
-          # - arch: armv7
-          #   artifact: subconverter_armv7
-          #   os: ubuntu-latest
-          # - arch: aarch64
-          #   artifact: subconverter_aarch64
-          #   os: ubuntu-latest
+          - arch: armv7
+            artifact: subconverter_armv7
+            os: ubuntu-latest
+          - arch: aarch64
+            artifact: subconverter_aarch64
+            os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     name: Linux ${{ matrix.arch }} Build
     steps:
@@ -62,11 +61,10 @@ jobs:
         include:
           - arch: x86
             artifact: subconverter_darwin64
-            os: macos-15
-          # For self-use builds, ARM compilation is commented out to save time
-          # - arch: arm
-          #   artifact: subconverter_darwinarm
-          #   os: macos-15
+            os: macos-13
+          - arch: arm
+            artifact: subconverter_darwinarm
+            os: macos-14
     runs-on: ${{ matrix.os }}
     name: macOS ${{ matrix.arch }} Build
     steps:
