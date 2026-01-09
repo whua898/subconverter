@@ -13,6 +13,27 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF()
 SET(CMAKE_CXX_STANDARD 20)
 
+# Version automation: Try to get version from git, or use -DVERSION=... argument
+if(NOT DEFINED VERSION)
+    find_package(Git)
+    if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} describe --tags --always
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(GIT_VERSION)
+            set(VERSION ${GIT_VERSION})
+        endif()
+    endif()
+endif()
+
+if(DEFINED VERSION)
+    add_compile_definitions(VERSION="${VERSION}")
+endif()
+
 IF(NOT MSVC)
     ADD_COMPILE_OPTIONS(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
 ELSE()
