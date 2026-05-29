@@ -89,6 +89,8 @@ jobs:
           SHA=${{ steps.vars.outputs.sha_short }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
 # macos_build 已注释 - 仅使用 Docker 不需要 macOS 编译
 # windows_build 已注释 - 仅使用 Docker 不需要 Windows 编译
