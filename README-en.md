@@ -93,6 +93,8 @@ services:
 | Surge 4                           |     ✓     |      ✓       | surge&ver=4    |
 | Surge 5                           |     ✓     |      ✓       | surge&ver=5    |
 | V2Ray                             |     ✓     |      ✓       | v2ray          |
+| VLESS                             |     ✓     |      ✓       | vless          |
+| Hysteria2                         |     ✓     |      ✓       | hysteria2      |
 | Telegram-liked HTTP/Socks 5 links |     ✓     |      ×       | Only as source |
 | Singbox                           |     ✓      |      ✓       | singbox        |
 
@@ -100,7 +102,9 @@ Notice:
 
 1. Shadowrocket users should use `ss`, `ssr` or `v2ray` as target.
 
-2. You can add `&remark=` to Telegram-liked HTTP/Socks 5 links to set a remark for this node. For example:
+2. The `v2ray` target now supports all protocol types supported by v2rayN client, including: SS, SSR, VMess, Trojan, VLESS, Hysteria2 and TUIC
+
+3. You can add `&remark=` to Telegram-liked HTTP/Socks 5 links to set a remark for this node. For example:
 
    - tg://http?server=1.2.3.4&port=233&user=user&pass=pass&remark=Example
 

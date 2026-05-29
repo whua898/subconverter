@@ -183,6 +183,8 @@
 | Surge 4                |   ✓   |    ✓   | surge&ver=4    |
 | Trojan                 |   ✓   |    ✓   | trojan         |
 | V2Ray                  |   ✓   |    ✓   | v2ray          |
+| VLESS                  |   ✓   |    ✓   | vless          |
+| Hysteria2              |   ✓   |    ✓   | hysteria2      |
 | 类 TG 代理的 HTTP/Socks 链接 |   ✓   |    ×   | 仅支持 `&url=` 调用 |
 | Mixed                  |   ×   |    ✓   | mixed          |
 | Auto                   |   ×   |    ✓   | auto           |
@@ -191,7 +193,9 @@
 
 1.  Shadowrocket 用户可以使用 `ss`、`ssr` 、 `v2ray` 以及 `mixed` 参数
 
-2.  类 TG 代理的 HTTP/Socks 链接由于没有命名设定，所以可以在后方插入`&remarks=`进行命名，同时也可以插入 `&group=` 设置组别名称，以上两个参数需要经过 [URLEncode](https://www.urlencoder.org/) 处理，例如
+2.  `v2ray` target 现在支持输出所有 v2rayN 客户端支持的协议类型，包括：SS、SSR、VMess、Trojan、VLESS、Hysteria2 和 TUIC
+
+3.  类 TG 代理的 HTTP/Socks 链接由于没有命名设定，所以可以在后方插入`&remarks=`进行命名，同时也可以插入 `&group=` 设置组别名称，以上两个参数需要经过 [URLEncode](https://www.urlencoder.org/) 处理，例如
 
     -   tg://http?server=1.2.3.4&port=233&user=user&pass=pass&remarks=Example&group=xxx
     -   <https://t.me/http?server=1.2.3.4&port=233&user=user&pass=pass&remarks=Example&group=xxx>
