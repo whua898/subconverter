@@ -76,4 +76,5 @@ std::string proxyToSSD(std::vector<Proxy> &nodes, std::string &group, std::strin
 std::string proxyToSingBox(std::vector<Proxy> &nodes, const std::string &base_conf, std::vector<RulesetContent> &ruleset_content_array, const ProxyGroupConfigs &extra_proxy_group, extra_settings &ext);
 void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::vector<RulesetContent> &ruleset_content_array, const ProxyGroupConfigs &extra_proxy_group, extra_settings &ext);
 void replaceAll(std::string& input, const std::string& search, const std::string& replace);
+std::string formatterShortId(std::string input);
 #endif // SUBEXPORT_H_INCLUDED
