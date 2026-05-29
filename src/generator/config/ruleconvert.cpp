@@ -10,9 +10,7 @@
 
 /// rule type lists
 #define basic_types "DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR", "SRC-IP-CIDR", "GEOIP", "MATCH", "FINAL"
-// 新增meta路由规则
-//string_array ClashRuleTypes = {basic_types, "IP-CIDR6", "SRC-PORT", "DST-PORT", "PROCESS-NAME"};
-string_array ClashRuleTypes = {basic_types, "IP-CIDR6", "SRC-PORT", "DST-PORT", "PROCESS-NAME", "DOMAIN-REGEX", "GEOSITE", "IP-SUFFIX", "IP-ASN", "SRC-GEOIP", "SRC-IP-ASN", "SRC-IP-SUFFIX", "IN-PORT", "IN-TYPE", "IN-USER", "IN-NAME", "PROCESS-PATH-REGEX", "PROCESS-PATH", "PROCESS-NAME-REGEX", "UID", "NETWORK", "DSCP", "SUB-RULE", "RULE-SET", "AND", "OR", "NOT"};
+string_array ClashRuleTypes = {basic_types, "IP-CIDR6", "SRC-PORT", "DST-PORT", "PROCESS-NAME"};
 string_array Surge2RuleTypes = {basic_types, "IP-CIDR6", "USER-AGENT", "URL-REGEX", "PROCESS-NAME", "IN-PORT", "DEST-PORT", "SRC-IP"};
 string_array SurgeRuleTypes = {basic_types, "IP-CIDR6", "USER-AGENT", "URL-REGEX", "AND", "OR", "NOT", "PROCESS-NAME", "IN-PORT", "DEST-PORT", "SRC-IP"};
 string_array QuanXRuleTypes = {basic_types, "USER-AGENT", "HOST", "HOST-SUFFIX", "HOST-KEYWORD"};
@@ -250,26 +248,8 @@ std::string rulesetToClashStr(YAML::Node &base_rule, std::vector<RulesetContent>
                 strLine.erase(strLine.find("//"));
                 strLine = trimWhitespace(strLine);
             }
-
-            //AND & OR & NOT
-            if(startsWith(strLine, "AND") || startsWith(strLine, "OR") || startsWith(strLine, "NOT"))
-            {
-                output_content += "  - " + strLine + "," + rule_group + "\n";
-            }
-            //SUB-RULE & RULE-SET
-            else if (startsWith(strLine, "SUB-RULE") || startsWith(strLine, "RULE-SET"))
-            {
-                output_content += "  - " + strLine + "\n";
-            }
-            else
-            //OTHER
-            {
-                strLine = transformRuleToCommon(temp, strLine, rule_group);
-                output_content += "  - " + strLine + "\n";
-            }
-
-            //strLine = transformRuleToCommon(temp, strLine, rule_group);
-            //output_content += "  - " + strLine + "\n";
+            strLine = transformRuleToCommon(temp, strLine, rule_group);
+            output_content += "  - " + strLine + "\n";
             total_rules++;
         }
     }
@@ -552,6 +532,9 @@ void rulesetToSingBox(rapidjson::Document &base_rule, std::vector<RulesetContent
             rules.Swap(base_rule["route"]["rules"]);
     }
 
+    auto dns_object = buildObject(allocator, "protocol", "dns", "outbound", "dns-out");
+    rules.PushBack(dns_object, allocator);
+
     if (global.singBoxAddClashModes)
     {
         auto global_object = buildObject(allocator, "clash_mode", "Global", "outbound", "GLOBAL");
@@ -559,9 +542,6 @@ void rulesetToSingBox(rapidjson::Document &base_rule, std::vector<RulesetContent
         rules.PushBack(global_object, allocator);
         rules.PushBack(direct_object, allocator);
     }
-
-    // auto dns_object = buildObject(allocator, "protocol", "dns", "outbound", "dns-out");
-    // rules.PushBack(dns_object, allocator);
 
     std::vector<std::string_view> temp(4);
     for(RulesetContent &x : ruleset_content_array)
@@ -623,130 +603,4 @@ void rulesetToSingBox(rapidjson::Document &base_rule, std::vector<RulesetContent
     base_rule["route"]
     | AddMemberOrReplace("rules", rules, allocator)
     | AddMemberOrReplace("final", finalValue, allocator);
-}
-
-void rulesetToMellow(INIReader &base_rule, std::vector<RulesetContent> &ruleset_content_array, bool overwrite_original_rules)
-{
-    string_array allRules;
-    std::string rule_group, retrieved_rules, strLine;
-    std::stringstream strStrm;
-    string_multimap original_rules;
-    std::vector<std::string_view> temp(4);
-
-    if(!overwrite_original_rules)
-    {
-        base_rule.set_current_section("Rule");
-        base_rule.get_items(original_rules);
-    }
-
-    for(RulesetContent &x : ruleset_content_array)
-    {
-        rule_group = x.rule_group;
-        retrieved_rules = x.rule_content.get();
-        if(retrieved_rules.empty())
-        {
-            writeLog(0, "Failed to fetch ruleset or ruleset is empty: '" + x.rule_path + "'!", LOG_LEVEL_WARNING);
-            continue;
-        }
-        if(startsWith(retrieved_rules, "[]"))
-        {
-            strLine = retrieved_rules.substr(2);
-            allRules.emplace_back(strLine + ", " + rule_group);
-            continue;
-        }
-        retrieved_rules = convertRuleset(retrieved_rules, x.rule_type);
-        char delimiter = getLineBreak(retrieved_rules);
-
-        strStrm.clear();
-        strStrm<<retrieved_rules;
-        std::string::size_type lineSize;
-        while(getline(strStrm, strLine, delimiter))
-        {
-            strLine = trimWhitespace(strLine, true, true); //remove whitespaces
-            lineSize = strLine.size();
-            if(!lineSize || strLine[0] == ';' || strLine[0] == '#' || (lineSize >= 2 && strLine[0] == '/' && strLine[1] == '/')) //empty lines and comments are ignored
-                continue;
-            if(std::none_of(SurgeRuleTypes.begin(), SurgeRuleTypes.end(), [strLine](const std::string& type){return startsWith(strLine, type);}))
-                continue;
-            if(strFind(strLine, "//"))
-            {
-                strLine.erase(strLine.find("//"));
-                strLine = trimWhitespace(strLine);
-            }
-            allRules.emplace_back(transformRuleToCommon(temp, strLine, rule_group));
-        }
-    }
-
-    base_rule.set_current_section("Rule");
-    if(overwrite_original_rules)
-        base_rule.erase_section();
-
-    for(auto &x : original_rules)
-        allRules.emplace_back(x.first + ", " + x.second);
-
-    for(std::string &x : allRules)
-        base_rule.set("{NONAME}", x);
-}
-
-void rulesetToLoon(INIReader &base_rule, std::vector<RulesetContent> &ruleset_content_array, bool overwrite_original_rules)
-{
-    string_array allRules;
-    std::string rule_group, retrieved_rules, strLine;
-    std::stringstream strStrm;
-    string_multimap original_rules;
-    std::vector<std::string_view> temp(4);
-
-    if(!overwrite_original_rules)
-    {
-        base_rule.set_current_section("Rule");
-        base_rule.get_items(original_rules);
-    }
-
-    for(RulesetContent &x : ruleset_content_array)
-    {
-        rule_group = x.rule_group;
-        retrieved_rules = x.rule_content.get();
-        if(retrieved_rules.empty())
-        {
-            writeLog(0, "Failed to fetch ruleset or ruleset is empty: '" + x.rule_path + "'!", LOG_LEVEL_WARNING);
-            continue;
-        }
-        if(startsWith(retrieved_rules, "[]"))
-        {
-            strLine = retrieved_rules.substr(2);
-            allRules.emplace_back(strLine + ", " + rule_group);
-            continue;
-        }
-        retrieved_rules = convertRuleset(retrieved_rules, x.rule_type);
-        char delimiter = getLineBreak(retrieved_rules);
-
-        strStrm.clear();
-        strStrm<<retrieved_rules;
-        std::string::size_type lineSize;
-        while(getline(strStrm, strLine, delimiter))
-        {
-            strLine = trimWhitespace(strLine, true, true); //remove whitespaces
-            lineSize = strLine.size();
-            if(!lineSize || strLine[0] == ';' || strLine[0] == '#' || (lineSize >= 2 && strLine[0] == '/' && strLine[1] == '/')) //empty lines and comments are ignored
-                continue;
-            if(std::none_of(SurgeRuleTypes.begin(), SurgeRuleTypes.end(), [strLine](const std::string& type){return startsWith(strLine, type);}))
-                continue;
-            if(strFind(strLine, "//"))
-            {
-                strLine.erase(strLine.find("//"));
-                strLine = trimWhitespace(strLine);
-            }
-            allRules.emplace_back(transformRuleToCommon(temp, strLine, rule_group));
-        }
-    }
-
-    base_rule.set_current_section("Rule");
-    if(overwrite_original_rules)
-        base_rule.erase_section();
-
-    for(auto &x : original_rules)
-        allRules.emplace_back(x.first + ", " + x.second);
-
-    for(std::string &x : allRules)
-        base_rule.set("{NONAME}", x);
 }
