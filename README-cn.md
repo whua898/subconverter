@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/whua898/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/whua898/subconverter/actions)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/whua898/subconverter.svg)](https://github.com/whua898/subconverter/tags)
 [![GitHub release](https://img.shields.io/github/release/whua898/subconverter.svg)](https://github.com/whua898/subconverter/releases)
-[![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/tindy2013/subconverter/blob/master/LICENSE)
+[![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/asdlokj1qpi233/subconverter/blob/master/LICENSE)
 
 [English README](https://github.com/whua898/subconverter/blob/master/README-en.md)
 
@@ -198,7 +198,7 @@
 
 3.  目标类型为 `mixed` 时，会输出所有支持的节点的单链接组成的普通订阅（Base64编码）
 
-4.  目标类型为 `auto` 时，会根据请求的 `User-Agent` 自动判断输出的目标类型，匹配规则可参见 [此处](https://github.com/tindy2013/subconverter/blob/master/src/handler/interfaces.cpp#L121) （该链接有可能因为代码修改而不能准确指向相应的代码）
+4.  目标类型为 `auto` 时，会根据请求的 `User-Agent` 自动判断输出的目标类型，匹配规则可参见 [此处](https://github.com/asdlokj1qpi233/subconverter/blob/master/src/handler/interfaces.cpp#L121) （该链接有可能因为代码修改而不能准确指向相应的代码）
 
 * * *
 
@@ -430,7 +430,7 @@ http://127.0.0.1:25500/getprofile?name=%NAME%&token=%TOKEN%
 
 应当注意的是，此处文件内的参数**无需进行 URLEncode**，且此处的 `token` 与 `api_mode` 的状态无关。
 
-在程序目录内的任意位置创建一个新的文档文件（推荐保存至 `profiles` 文件夹内，以使整洁目录及便于后续维护），如 `formyairport.ini`，并仿照 [示例文档](https://github.com/tindy2013/subconverter/blob/master/base/profiles/example_profile.ini) 根据配置好的参数填写进去即可。
+在程序目录内的任意位置创建一个新的文档文件（推荐保存至 `profiles` 文件夹内，以使整洁目录及便于后续维护），如 `formyairport.ini`，并仿照 [示例文档](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/profiles/example_profile.ini) 根据配置好的参数填写进去即可。
 
 <details>
 <summary>举个例子：</summary>
@@ -456,7 +456,7 @@ exclude=(流量|官网)
 
 > 关于 subconverter 主程序目录中 `pref.ini` 文件的解释，其余格式的配置文件不再赘述，与之相仿。
 
-注：本部分内容以本程序中的 [`pref.example.ini`](https://github.com/tindy2013/subconverter/blob/master/base/pref.example.ini) 或 [`pref.example.yml`](https://github.com/tindy2013/subconverter/blob/master/base/pref.example.yml) 或 [`pref.example.toml`](https://github.com/tindy2013/subconverter/blob/master/base/pref.example.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
+注：本部分内容以本程序中的 [`pref.example.ini`](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/pref.example.ini) 或 [`pref.example.yml`](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/pref.example.yml) 或 [`pref.example.toml`](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/pref.example.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
 
 加载配置文件时会按照`pref.toml`、`pref.yml`、`pref.ini`的优先级顺序加载优先级高的配置文件
 
@@ -571,7 +571,11 @@ exclude=(流量|官网)
 
         ```ini
         #仅保留加密方式为chacha20的节点
-        filter_script=function filter(node) {\n    if(node.EncryptMethod.includes('chacha20'))\n        return true;\n    return false;\n}
+        filter_script=function filter(node) {
+    if(node.EncryptMethod.includes('chacha20'))
+        return true;
+    return false;
+}
         # 或者使用本地文件
         filter_script="path:/path/to/script.js"
         ```
@@ -818,7 +822,11 @@ exclude=(流量|官网)
         ```ini
         rename_node=中国@中
         rename_node=\(?((x|X)?(\d+)(\.?\d+)?)((\s?倍率?:?)|(x|X))\)?@(倍率:$1)
-        rename_node=!!script:function rename(node) {\n  const geoinfo = JSON.parse(geoip(node.Hostname));\n  if(geoinfo.country_code == "CN")\n    return "CN " + node.Remark;\n}
+        rename_node=!!script:function rename(node) {
+  const geoinfo = JSON.parse(geoip(node.Hostname));
+  if(geoinfo.country_code == "CN")
+    return "CN " + node.Remark;
+}
         rename_node=!!script:path:/path/to/script.js
         ```
 
@@ -1185,7 +1193,7 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 > 本部分用于 链接参数 **`&config=`**
 
-注：本部分内容以本程序中的 [`/config/example_external_config.ini`](https://github.com/tindy2013/subconverter/blob/master/base/config/example_external_config.ini) 或 [`/config/example_external_config.yml`](https://github.com/tindy2013/subconverter/blob/master/base/config/example_external_config.yml) 或 [`/config/example_external_config.toml`](https://github.com/tindy2013/subconverter/blob/master/base/config/example_external_config.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
+注：本部分内容以本程序中的 [`/config/example_external_config.ini`](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/config/example_external_config.ini) 或 [`/config/example_external_config.yml`](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/config/example_external_config.yml) 或 [`/config/example_external_config.toml`](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/config/example_external_config.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
 
 将文件按照以下格式写好，上传至 Github Gist 或者 其他**可访问**网络位置
 经过 [URLEncode](https://www.urlencoder.org/) 处理后，添加至 `&config=` 即可调用
@@ -1417,7 +1425,7 @@ http://127.0.0.1:25500/render?path=xxx&额外的调试或控制参数
 
 > 启动程序后，在本地生成对应的配置文件文本
 
-在程序目录内的 [generate.ini](https://github.com/tindy2013/subconverter/blob/master/base/generate.ini) 中设定文件块(`[xxx]`)，生成的文件名(path=xxx)以及其所需要包含的参数，例如：
+在程序目录内的 [generate.ini](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/generate.ini) 中设定文件块(`[xxx]`)，生成的文件名(path=xxx)以及其所需要包含的参数，例如：
 
 ```ini
 [test]
@@ -1439,7 +1447,7 @@ profile=profiles/example_profile.ini
 
 > 自动上传 gist ，可以用于 Clash For Android / Surge 等进行远程订阅
 
-在程序目录内的 [gistconf.ini](https://github.com/tindy2013/subconverter/blob/master/base/gistconf.ini) 中添加 `Personal Access Token`（[在此创建](https://github.com/settings/tokens/new?scopes=gist&description=Subconverter)）例如：
+在程序目录内的 [gistconf.ini](https://github.com/asdlokj1qpi233/subconverter/blob/master/base/gistconf.ini) 中添加 `Personal Access Token`（[在此创建](https://github.com/settings/tokens/new?scopes=gist&description=Subconverter)）例如：
 
 ```ini
 [common]

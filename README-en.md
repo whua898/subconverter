@@ -5,7 +5,7 @@ A command-line utility that converts between different proxy subscription format
 [![Build Status](https://github.com/whua898/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/whua898/subconverter/actions)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/whua898/subconverter.svg)](https://github.com/whua898/subconverter/tags)
 [![GitHub release](https://img.shields.io/github/release/whua898/subconverter.svg)](https://github.com/whua898/subconverter/releases)
-[![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/tindy2013/subconverter/blob/master/LICENSE)
+[![GitHub license](https://img.shields.io/github/license/whua898/subconverter.svg)](https://github.com/asdlokj1qpi233/subconverter/blob/master/LICENSE)
 
 [Docker README](https://github.com/whua898/subconverter/blob/master/README-docker.md)
 
