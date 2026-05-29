@@ -16,18 +16,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86
-            artifact: subconverter_linux32
-            os: ubuntu-latest
           - arch: amd64
             artifact: subconverter_linux64
             os: ubuntu-latest
-          - arch: armv7
-            artifact: subconverter_armv7
-            os: ubuntu-24.04-arm
-          - arch: aarch64
-            artifact: subconverter_aarch64
-            os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     name: Linux ${{ matrix.arch }} Build
     steps:
@@ -57,12 +48,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86
+          - arch: amd64
             artifact: subconverter_darwin64
             os: macos-26-intel
-          - arch: arm
-            artifact: subconverter_darwinarm
-            os: macos-26
     runs-on: ${{ matrix.os }}
     name: macOS ${{ matrix.arch }} Build
     steps:
@@ -96,10 +84,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86
-            artifact: subconverter_win32
-            env: i686
-            msystem: MINGW32
           - arch: amd64
             artifact: subconverter_win64
             env: x86_64
