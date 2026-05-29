@@ -1240,10 +1240,10 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
 }
 
 std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &ext) {
-    /// types: SS=1 SSR=2 VMess=4 Trojan=8,hysteria2=16,vless=32
+    /// types: SS=1 SSR=2 VMess=4 Trojan=8, Hysteria2=16, VLESS=32, TUIC=64
     std::string proxyStr, allLinks;
     bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria2 =
-            GETBIT(types, 5), vless = GETBIT(types, 6);
+            GETBIT(types, 5), vless = GETBIT(types, 6), tuic = GETBIT(types, 7);
 
     for (Proxy &x: nodes) {
         std::string remark = x.Remark;
@@ -1404,6 +1404,28 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                     proxyStr += "&ws=1";
                     if (!path.empty())
                         proxyStr += "&wspath=" + urlEncode(path);
+                }
+                proxyStr += "#" + urlEncode(remark);
+                break;
+            case ProxyType::TUIC:
+                if (!tuic)
+                    continue;
+                proxyStr = "tuic://" + x.UserId + ":" + x.Password + "@" + hostname + ":" + port + "?";
+                if (!x.CongestionControl.empty())
+                    proxyStr += "&congestion_control=" + x.CongestionControl;
+                if (!x.ServerName.empty())
+                    proxyStr += "&sni=" + x.ServerName;
+                if (!x.Alpn.empty()) {
+                    proxyStr += "&alpn=" + x.Alpn;
+                }
+                if (!x.UdpRelayMode.empty()) {
+                    proxyStr += "&udp_relay_mode=" + x.UdpRelayMode;
+                }
+                if (!x.ReduceRtt.is_undef() && x.ReduceRtt) {
+                    proxyStr += "&zero_rtt_handshake=1";
+                }
+                if (x.AllowInsecure.is_undef() || x.AllowInsecure.get()) {
+                    proxyStr += "&allow_insecure=1";
                 }
                 proxyStr += "#" + urlEncode(remark);
                 break;

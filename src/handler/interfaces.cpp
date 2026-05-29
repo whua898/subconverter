@@ -802,7 +802,8 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
             break;
         case "v2ray"_hash:
             writeLog(0, "Generate target: v2rayN", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 4, ext);
+            // v2rayN now supports: SS(1) + SSR(2) + VMess(4) + Trojan(8) + Hysteria2(16) + VLESS(32) + TUIC(64) = 127
+            output_content = proxyToSingle(nodes, 127, ext);
             if (argUpload)
                 uploadGist("v2ray", argUploadPath, output_content, false);
             break;
@@ -826,7 +827,8 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
             break;
         case "mixed"_hash:
             writeLog(0, "Generate target: Standard Subscription", LOG_LEVEL_INFO);
-            output_content = proxyToSingle(nodes, 63, ext);
+            // Mixed: All protocols (SS+SSR+VMess+Trojan+Hysteria2+VLESS+TUIC = 127)
+            output_content = proxyToSingle(nodes, 127, ext);
             if (argUpload)
                 uploadGist("sub", argUploadPath, output_content, false);
             break;
