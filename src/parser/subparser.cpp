@@ -3358,37 +3358,6 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             if (explodeSurge(sub, nodes))
                 return;
         }
-        // 处理 v2rayN 客户端导出的订阅格式
-        // 格式示例：
-        // ----------------------------
-        // v2rayn://hysteria2/Base64JSONConfig
-        // v2rayn://tuic/Base64JSONConfig
-        // 解决方案：直接提取并解码Base64配置，然后按行处理
-        std::string v2rayn_processed_content;
-        if (sub.find("v2rayn://") != std::string::npos) {
-            std::stringstream v2rayn_stream(sub);
-            std::string v2rayn_line;
-            while (std::getline(v2rayn_stream, v2rayn_line)) {
-                if (v2rayn_line.rfind('\r') != std::string::npos)
-                    v2rayn_line.pop_back();
-                if (!startsWith(v2rayn_line, "v2rayn://"))
-                    continue;
-                // 去掉 "v2rayn://" 前缀
-                std::string node_config = v2rayn_line.substr(9);
-                // 找到第一个 '/'，后面是Base64配置
-                size_t slash_pos = node_config.find('/');
-                if (slash_pos == std::string::npos)
-                    continue;
-                std::string config_b64 = node_config.substr(slash_pos + 1);
-                // 解码Base64配置
-                std::string decoded_config = urlSafeBase64Decode(config_b64);
-                v2rayn_processed_content += decoded_config + "\n";
-            }
-            // 如果有处理后的内容，替换原始内容
-            if (!v2rayn_processed_content.empty()) {
-                sub = v2rayn_processed_content;
-            }
-        }
         strstream << sub;
         char delimiter =
                 count(sub.begin(), sub.end(), '\n') < 1 ? count(sub.begin(), sub.end(), '\r') < 1 ? ' ' : '\r' : '\n';
