@@ -2,6 +2,8 @@
 #include <string>
 #include <mutex>
 #include <numeric>
+#include <future>
+#include <atomic>
 
 #include <inja.hpp>
 #include <yaml-cpp/yaml.h>
@@ -591,20 +593,84 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
     urls = split(argUrl, "|");
     importItems(urls, true);
     groupID = 0;
-    for (std::string &x: urls) {
-        x = regTrim(x);
-        //std::cerr<<"Fetching node data from url '"<<x<<"'."<<std::endl;
-        writeLog(0, "Fetching node data from url '" + x + "'.", LOG_LEVEL_INFO);
-        if (addNodes(x, nodes, groupID, parse_set) == -1) {
-            if (global.skipFailedLinks)
-                writeLog(0, "The following link doesn't contain any valid node info: " + x, LOG_LEVEL_WARNING);
-            else {
+    
+    // 使用并发下载提高多URL处理效率
+    // 定义下载任务的结果结构
+    struct DownloadTask {
+        int groupID;
+        std::string url;
+        bool success;
+        std::vector<Proxy> nodes;
+    };
+    
+    // 清理URL并准备下载任务
+    string_array clean_urls;
+    clean_urls.reserve(urls.size());
+    for (auto &x: urls) {
+        clean_urls.push_back(regTrim(x));
+    }
+    
+    // 创建并发下载任务
+    std::vector<std::future<DownloadTask>> futures;
+    futures.reserve(clean_urls.size());
+    
+    for (size_t i = 0; i < clean_urls.size(); i++) {
+        writeLog(0, "Starting download task for url '" + clean_urls[i] + "'.", LOG_LEVEL_INFO);
+        
+        // 使用async启动异步任务
+        futures.push_back(std::async(std::launch::async, [&, i, clean_urls]() -> DownloadTask {
+            DownloadTask task;
+            task.groupID = static_cast<int>(i);
+            task.url = clean_urls[i];
+            task.success = false;
+            
+            writeLog(0, "Fetching node data from url '" + task.url + "' (async).", LOG_LEVEL_INFO);
+            
+            // 每个任务使用独立的parse_set避免竞争
+            parse_settings task_parse_set = parse_set;
+            
+            if (addNodes(task.url, task.nodes, task.groupID, task_parse_set) != -1) {
+                task.success = true;
+            } else {
+                writeLog(0, "Failed to fetch nodes from url: " + task.url, LOG_LEVEL_WARNING);
+            }
+            
+            return task;
+        }));
+    }
+    
+    // 等待所有任务完成并收集结果
+    std::atomic<int> success_count{0};
+    std::atomic<int> fail_count{0};
+    
+    for (auto &future : futures) {
+        try {
+            DownloadTask task = future.get();
+            if (task.success) {
+                success_count++;
+                // 将成功的节点添加到总列表
+                std::move(task.nodes.begin(), task.nodes.end(), std::back_inserter(nodes));
+                writeLog(0, "Successfully fetched nodes from: " + task.url, LOG_LEVEL_INFO);
+            } else {
+                fail_count++;
+                if (!global.skipFailedLinks) {
+                    *status_code = 400;
+                    return "The following link doesn't contain any valid node info: " + task.url;
+                }
+            }
+        } catch (const std::exception &e) {
+            fail_count++;
+            writeLog(0, "Exception occurred while fetching url: " + std::string(e.what()), LOG_LEVEL_ERROR);
+            if (!global.skipFailedLinks) {
                 *status_code = 400;
-                return "The following link doesn't contain any valid node info: " + x;
+                return "Exception occurred while fetching url: " + std::string(e.what());
             }
         }
-        groupID++;
     }
+    
+    writeLog(0, "Download completed: " + std::to_string(success_count) + " succeeded, " + 
+             std::to_string(fail_count) + " failed out of " + std::to_string(clean_urls.size()) + " total URLs.", 
+             LOG_LEVEL_INFO);
     //exit if found nothing
     if (nodes.empty() && insert_nodes.empty()) {
         *status_code = 400;

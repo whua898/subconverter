@@ -4,6 +4,7 @@
 //#include <mutex>
 #include <thread>
 #include <atomic>
+#include <chrono>
 
 #include <curl/curl.h>
 
@@ -131,7 +132,8 @@ static inline void curl_set_common_options(CURL *curl_handle, const char *url, c
     curl_easy_setopt(curl_handle, CURLOPT_MAXREDIRS, 20L);
     curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 15L);
+    curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 30L);  // 增加超时时间到30秒
+    curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);  // 连接超时10秒
     curl_easy_setopt(curl_handle, CURLOPT_COOKIEFILE, "");
     if(data)
     {
@@ -230,14 +232,24 @@ static int curlGet(const FetchArgument &argument, FetchResult &result)
         break;
     }
 
-    unsigned int fail_count = 0, max_fails = 1;
+    unsigned int fail_count = 0, max_fails = 3;  // 增加重试次数到3次
     while(true)
     {
         retVal = curl_easy_perform(curl_handle);
-        if(retVal == CURLE_OK || max_fails <= fail_count || global.APIMode)
+        if(retVal == CURLE_OK)
+            break;
+        
+        // 记录失败原因
+        writeLog(0, "cURL request failed (attempt " + std::to_string(fail_count + 1) + "/" + 
+                 std::to_string(max_fails) + "): " + curl_easy_strerror(retVal), LOG_LEVEL_WARNING);
+        
+        if(max_fails <= fail_count + 1 || global.APIMode)
             break;
         else
             fail_count++;
+            
+        // 重试前等待一小段时间
+        std::this_thread::sleep_for(std::chrono::milliseconds(500 * (fail_count + 1)));
     }
 
     long code = 0;
