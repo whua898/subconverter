@@ -3484,19 +3484,27 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
 
     //try to parse as normal subscription
     if (!processed) {
-        sub = urlSafeBase64Decode(sub);
-        if (regFind(sub, "(vmess|shadowsocks|http|trojan)\\s*?=")) {
-            if (explodeSurge(sub, nodes))
-                return;
-        }
-        
-        // 尝试解析 Xray JSON 格式（BPB /sub/normal/ 路径返回的格式）
+        // 先检测是否是 JSON 格式（BPB /sub/normal/ 返回的格式），如果是则跳过 Base64 解码
         // 支持三种格式：
         // 1. JSON 数组：[{"remarks":"...", "outbounds":[...]}]
         // 2. 单个完整配置文件：{"remarks":"...", "outbounds":[...], "inbounds":[...]}
         // 3. Singbox 格式：{"type":"vless","server":"...","server_port":...}
         // 4. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
-        if (sub.find("[{\"") != std::string::npos || sub.find("\n[{\"") != std::string::npos || sub.find("{\"remarks\"") != std::string::npos || sub.find("\n{\"remarks\"") != std::string::npos) {
+        bool is_json = (sub.find("[{\"") != std::string::npos || 
+                       sub.find("\n[{\"") != std::string::npos || 
+                       sub.find("{\"remarks\"") != std::string::npos || 
+                       sub.find("\n{\"remarks\"") != std::string::npos);
+        
+        if (!is_json) {
+            sub = urlSafeBase64Decode(sub);
+        }
+        
+        if (regFind(sub, "(vmess|shadowsocks|http|trojan)\\s*?=")) {
+            if (explodeSurge(sub, nodes))
+                return;
+        }
+        
+        if (is_json) {
             std::string trimmed = sub;
             // 找到第一个 [ 或 { 开始的位置
             size_t json_start = trimmed.find_first_of("[{");
