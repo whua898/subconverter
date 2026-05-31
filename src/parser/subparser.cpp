@@ -2819,20 +2819,30 @@ void explodeNetchConf(std::string netch, std::vector<Proxy> &nodes) {
 int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes) {
     ConfType filetype = ConfType::Unknow;
 
-    if (strFind(content, "\"version\""))
-        filetype = ConfType::SS;
-    else if (strFind(content, "\"serverSubscribes\""))
-        filetype = ConfType::SSR;
-    else if (strFind(content, "\"uiItem\"") || strFind(content, "vnext"))
-        filetype = ConfType::V2Ray;
-    else if (strFind(content, "\"proxy_apps\""))
-        filetype = ConfType::SSConf;
-    else if (strFind(content, "\"idInUse\""))
-        filetype = ConfType::SSTap;
-    else if (strFind(content, "\"local_address\"") && strFind(content, "\"local_port\""))
-        filetype = ConfType::SSR; //use ssr config parser
-    else if (strFind(content, "\"ModeFileNameType\""))
-        filetype = ConfType::Netch;
+    // 优先检测 JSON 数组格式的订阅（BPB /sub/normal/ 返回的格式）
+    // 如果以 [{ 开头，说明是订阅数组，不是单个配置文件
+    std::string trimmed = content;
+    size_t first_bracket = trimmed.find('[');
+    if (first_bracket != std::string::npos) {
+        trimmed = trimmed.substr(first_bracket);
+    }
+    // 如果是 JSON 数组格式，跳过配置类型检测，直接走订阅解析路径
+    if (!startsWith(trimmed, "[{\"") && !startsWith(trimmed, "\n[{\"")) {
+        if (strFind(content, "\"version\""))
+            filetype = ConfType::SS;
+        else if (strFind(content, "\"serverSubscribes\""))
+            filetype = ConfType::SSR;
+        else if (strFind(content, "\"uiItem\"") || strFind(content, "vnext"))
+            filetype = ConfType::V2Ray;
+        else if (strFind(content, "\"proxy_apps\""))
+            filetype = ConfType::SSConf;
+        else if (strFind(content, "\"idInUse\""))
+            filetype = ConfType::SSTap;
+        else if (strFind(content, "\"local_address\"") && strFind(content, "\"local_port\""))
+            filetype = ConfType::SSR; //use ssr config parser
+        else if (strFind(content, "\"ModeFileNameType\""))
+            filetype = ConfType::Netch;
+    }
 
     switch (filetype) {
         case ConfType::SS:
