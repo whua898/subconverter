@@ -151,7 +151,7 @@ static int curlGet(const FetchArgument &argument, FetchResult &result)
     std::string *data = result.content, new_url = argument.url;
     curl_slist *header_list = nullptr;
     defer(curl_slist_free_all(header_list);)
-    long retVal;
+    CURLcode retVal;
 
     curl_init();
 
