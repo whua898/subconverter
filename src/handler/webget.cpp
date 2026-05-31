@@ -83,7 +83,7 @@ static void curl_pool_cleanup()
 }
 
 // curl共享锁回调函数（多线程安全）
-static void curl_share_lock_callback(CURL *handle, CURL.lock_data data, CURL.lock_access access, void *userptr)
+static void curl_share_lock_callback(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr)
 {
     (void)handle;
     (void)access;
@@ -106,7 +106,7 @@ static void curl_share_lock_callback(CURL *handle, CURL.lock_data data, CURL.loc
     }
 }
 
-static void curl_share_unlock_callback(CURL *handle, CURL.lock_data data, void *userptr)
+static void curl_share_unlock_callback(CURL *handle, curl_lock_data data, void *userptr)
 {
     (void)handle;
     (void)userptr;
