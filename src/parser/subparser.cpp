@@ -2838,6 +2838,12 @@ int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes) {
                           (strFind(content, "\"outbounds\"") && strFind(content, "\"inbounds\""));
     bool is_singbox = startsWith(trimmed, "{\"type\"") || startsWith(trimmed, "\n{\"type\"");
     
+    // 调试日志
+    writeLog(LOG_TYPE_INFO, "explodeConfContent: is_json_array=" + std::to_string(is_json_array) + 
+             ", is_single_xray=" + std::to_string(is_single_xray) + 
+             ", is_singbox=" + std::to_string(is_singbox));
+    writeLog(LOG_TYPE_INFO, "explodeConfContent: trimmed_start=" + trimmed.substr(0, std::min((size_t)50, trimmed.size())));
+    
     if (!is_json_array && !is_single_xray && !is_singbox) {
         if (strFind(content, "\"version\""))
             filetype = ConfType::SS;
