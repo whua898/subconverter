@@ -3326,14 +3326,135 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             regFind(sub, pattern)) {
             pattern = "\"?(outbounds)\"?:";
             if (regFind(sub, pattern)) {
-                pattern = "\"?(route)\"?:";
-                if (regFind(sub, pattern)) {
+                // 支持 Sing-Box (route) 和 Xray (routing) 两种格式
+                bool isSingbox = regFind(sub, "\"?(route)\"?:");
+                bool isXray = regFind(sub, "\"?(routing)\"?:");
+                
+                if (isSingbox || isXray) {
                     rapidjson::Document document;
                     document.Parse(sub.c_str());
-                    if (!document.HasParseError() || document.IsObject()) {
+                    if (!document.HasParseError() && document.IsObject()) {
                         rapidjson::Value &value = document["outbounds"];
                         if (value.IsArray() && !value.Empty()) {
-                            explodeSingbox(value, nodes);
+                            // Sing-Box 格式
+                            if (isSingbox) {
+                                explodeSingbox(value, nodes);
+                            } 
+                            // Xray 格式 - 遍历 outbounds 提取节点
+                            else if (isXray) {
+                                for (rapidjson::SizeType i = 0; i < value.Size(); ++i) {
+                                    if (!value[i].IsObject()) continue;
+                                    
+                                    std::string type;
+                                    GetMember(value[i], "type", type);
+                                    if (type.empty()) GetMember(value[i], "protocol", type);
+                                    
+                                    // 只解析代理节点，跳过其他类型
+                                    if (type == "freedom" || type == "blackhole" || type == "dns" || 
+                                        type == "direct" || type == "block" || type == "blocked") {
+                                        continue;
+                                    }
+                                    
+                                    // 解析 VLESS 节点
+                                    if (type == "vless" && value[i].HasMember("settings")) {
+                                        auto &settings = value[i]["settings"];
+                                        if (settings.HasMember("vnext") && settings["vnext"].Size() > 0) {
+                                            auto &vnext = settings["vnext"][0];
+                                            std::string add, port, id, flow, encryption = "none";
+                                            GetMember(vnext, "address", add);
+                                            port = GetMember(vnext, "port");
+                                            if (vnext.HasMember("users") && vnext["users"].Size() > 0) {
+                                                GetMember(vnext["users"][0], "id", id);
+                                                GetMember(vnext["users"][0], "flow", flow);
+                                                GetMember(vnext["users"][0], "encryption", encryption);
+                                            }
+                                            
+                                            std::string network = "tcp", security = "none", sni, fp, pbk, sid;
+                                            std::string path, host;
+                                            if (value[i].HasMember("streamSettings")) {
+                                                auto &stream = value[i]["streamSettings"];
+                                                GetMember(stream, "network", network);
+                                                GetMember(stream, "security", security);
+                                                
+                                                if (stream.HasMember("tlsSettings")) {
+                                                    GetMember(stream["tlsSettings"], "serverName", sni);
+                                                    GetMember(stream["tlsSettings"], "fingerprint", fp);
+                                                }
+                                                if (stream.HasMember("realitySettings")) {
+                                                    GetMember(stream["realitySettings"], "serverName", sni);
+                                                    GetMember(stream["realitySettings"], "fingerprint", fp);
+                                                    GetMember(stream["realitySettings"], "publicKey", pbk);
+                                                    GetMember(stream["realitySettings"], "shortId", sid);
+                                                }
+                                                if (network == "ws" && stream.HasMember("wsSettings")) {
+                                                    GetMember(stream["wsSettings"], "path", path);
+                                                    if (stream["wsSettings"].HasMember("headers")) {
+                                                        GetMember(stream["wsSettings"]["headers"], "Host", host);
+                                                    }
+                                                }
+                                                if (network == "grpc" && stream.HasMember("grpcSettings")) {
+                                                    GetMember(stream["grpcSettings"], "serviceName", path);
+                                                }
+                                            }
+                                            
+                                            std::string remarks = add + ":" + port;
+                                            if (value[i].HasMember("tag")) {
+                                                GetMember(value[i], "tag", remarks);
+                                            }
+                                            
+                                            Proxy node;
+                                            vlessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, add, port, "", id, "0", 
+                                                          network, "auto", flow, "", path, host, "", security, pbk, sid, 
+                                                          fp, sni, std::vector<std::string>{}, "", encryption,
+                                                          tribool(), tribool(), tribool(), tribool(), "", tribool());
+                                            node.Id = nodes.size();
+                                            nodes.emplace_back(std::move(node));
+                                        }
+                                    }
+                                    // 解析 Trojan 节点
+                                    else if (type == "trojan" && value[i].HasMember("settings")) {
+                                        auto &settings = value[i]["settings"];
+                                        if (settings.HasMember("servers") && settings["servers"].Size() > 0) {
+                                            auto &server = settings["servers"][0];
+                                            std::string add, port, password;
+                                            GetMember(server, "address", add);
+                                            port = GetMember(server, "port");
+                                            GetMember(server, "password", password);
+                                            
+                                            std::string network = "tcp", security = "tls", sni, fp;
+                                            std::string path, host;
+                                            if (value[i].HasMember("streamSettings")) {
+                                                auto &stream = value[i]["streamSettings"];
+                                                GetMember(stream, "network", network);
+                                                GetMember(stream, "security", security);
+                                                
+                                                if (stream.HasMember("tlsSettings")) {
+                                                    GetMember(stream["tlsSettings"], "serverName", sni);
+                                                    GetMember(stream["tlsSettings"], "fingerprint", fp);
+                                                }
+                                                if (network == "ws" && stream.HasMember("wsSettings")) {
+                                                    GetMember(stream["wsSettings"], "path", path);
+                                                    if (stream["wsSettings"].HasMember("headers")) {
+                                                        GetMember(stream["wsSettings"]["headers"], "Host", host);
+                                                    }
+                                                }
+                                            }
+                                            
+                                            std::string remarks = add + ":" + port;
+                                            if (value[i].HasMember("tag")) {
+                                                GetMember(value[i], "tag", remarks);
+                                            }
+                                            
+                                            Proxy node;
+                                            trojanConstruct(node, TROJAN_DEFAULT_GROUP, remarks, add, port, password, 
+                                                           network, host, path, fp, sni, std::vector<std::string>{}, 
+                                                           true, tribool(), tribool(), tribool(), tribool(), "");
+                                            node.Id = nodes.size();
+                                            nodes.emplace_back(std::move(node));
+                                        }
+                                    }
+                                }
+                            }
                             processed = true;
                         }
                     }
@@ -3358,6 +3479,148 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             if (explodeSurge(sub, nodes))
                 return;
         }
+        
+        // 尝试解析 Xray JSON 数组格式（BPB /sub/normal/ 路径返回的格式）
+        // 格式示例：[{"remarks":"节点1","outbounds":[...]}, {"remarks":"节点2","outbounds":[...]}]
+        if (sub.find("[{\"") != std::string::npos || sub.find("\n[{\"") != std::string::npos) {
+            std::string trimmed = sub;
+            // 去除可能的换行符
+            size_t json_start = trimmed.find('[');
+            if (json_start != std::string::npos) {
+                trimmed = trimmed.substr(json_start);
+            }
+            
+            try {
+                rapidjson::Document json;
+                json.Parse(trimmed.c_str());
+                if (!json.HasParseError() && json.IsArray() && !json.Empty()) {
+                    std::string xray_nodes;
+                    for (rapidjson::SizeType i = 0; i < json.Size(); ++i) {
+                        if (!json[i].IsObject()) continue;
+                        
+                        // 提取节点名称
+                        std::string remarks;
+                        if (json[i].HasMember("remarks") && json[i]["remarks"].IsString()) {
+                            remarks = json[i]["remarks"].GetString();
+                        }
+                        
+                        // 提取 outbounds 数组
+                        if (!json[i].HasMember("outbounds") || !json[i]["outbounds"].IsArray()) continue;
+                        
+                        // 遍历 outbounds，找到 VLESS/Trojan 类型的节点
+                        for (rapidjson::SizeType j = 0; j < json[i]["outbounds"].Size(); ++j) {
+                            if (!json[i]["outbounds"][j].IsObject()) continue;
+                            
+                            auto &outbound = json[i]["outbounds"][j];
+                            if (!outbound.HasMember("type") || !outbound["type"].IsString()) continue;
+                            
+                            std::string type = outbound["type"].GetString();
+                            if (type != "vless" && type != "trojan") continue;
+                            
+                            // 提取必要字段
+                            std::string server, server_port, uuid, password, flow, sni;
+                            std::string network = "tcp", path, host, security = "none";
+                            
+                            if (outbound.HasMember("server") && outbound["server"].IsString())
+                                server = outbound["server"].GetString();
+                            if (outbound.HasMember("server_port")) {
+                                if (outbound["server_port"].IsInt())
+                                    server_port = std::to_string(outbound["server_port"].GetInt());
+                                else if (outbound["server_port"].IsString())
+                                    server_port = outbound["server_port"].GetString();
+                            }
+                            
+                            if (type == "vless") {
+                                if (outbound.HasMember("uuid") && outbound["uuid"].IsString())
+                                    uuid = outbound["uuid"].GetString();
+                                if (outbound.HasMember("flow") && outbound["flow"].IsString())
+                                    flow = outbound["flow"].GetString();
+                                
+                                // 提取 transport
+                                if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
+                                    auto &transport = outbound["transport"];
+                                    if (transport.HasMember("type") && transport["type"].IsString())
+                                        network = transport["type"].GetString();
+                                    if (transport.HasMember("path") && transport["path"].IsString())
+                                        path = transport["path"].GetString();
+                                    if (transport.HasMember("headers") && transport["headers"].IsObject()) {
+                                        if (transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString())
+                                            host = transport["headers"]["Host"].GetString();
+                                    }
+                                }
+                                
+                                // 提取 TLS
+                                if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
+                                    auto &tls = outbound["tls"];
+                                    if (tls.HasMember("enabled") && tls["enabled"].IsBool() && tls["enabled"].GetBool())
+                                        security = "tls";
+                                    if (tls.HasMember("server_name") && tls["server_name"].IsString())
+                                        sni = tls["server_name"].GetString();
+                                }
+                                
+                                // 构建 VLESS URI
+                                if (!server.empty() && !server_port.empty() && !uuid.empty()) {
+                                    std::string uri = "vless://" + uuid + "@" + server + ":" + server_port;
+                                    uri += "?encryption=none";
+                                    uri += "&security=" + security;
+                                    if (!network.empty()) uri += "&type=" + network;
+                                    if (!host.empty()) uri += "&host=" + urlEncode(host);
+                                    if (!path.empty()) uri += "&path=" + urlEncode(path);
+                                    if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
+                                    if (!flow.empty()) uri += "&flow=" + flow;
+                                    if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                    xray_nodes += uri + "\n";
+                                }
+                            }
+                            else if (type == "trojan") {
+                                if (outbound.HasMember("password") && outbound["password"].IsString())
+                                    password = outbound["password"].GetString();
+                                
+                                // 提取 transport
+                                if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
+                                    auto &transport = outbound["transport"];
+                                    if (transport.HasMember("type") && transport["type"].IsString())
+                                        network = transport["type"].GetString();
+                                    if (transport.HasMember("path") && transport["path"].IsString())
+                                        path = transport["path"].GetString();
+                                    if (transport.HasMember("headers") && transport["headers"].IsObject()) {
+                                        if (transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString())
+                                            host = transport["headers"]["Host"].GetString();
+                                    }
+                                }
+                                
+                                // 提取 TLS
+                                if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
+                                    auto &tls = outbound["tls"];
+                                    if (tls.HasMember("server_name") && tls["server_name"].IsString())
+                                        sni = tls["server_name"].GetString();
+                                }
+                                
+                                // 构建 Trojan URI
+                                if (!server.empty() && !server_port.empty() && !password.empty()) {
+                                    std::string uri = "trojan://" + urlEncode(password) + "@" + server + ":" + server_port;
+                                    uri += "?security=tls";
+                                    if (!network.empty() && network != "tcp") uri += "&type=" + network;
+                                    if (!host.empty()) uri += "&host=" + urlEncode(host);
+                                    if (!path.empty()) uri += "&path=" + urlEncode(path);
+                                    if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
+                                    if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                    xray_nodes += uri + "\n";
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 如果成功解析了 Xray JSON 节点，替换原始内容
+                    if (!xray_nodes.empty()) {
+                        sub = xray_nodes;
+                    }
+                }
+            } catch (...) {
+                // JSON 解析失败，继续后续处理
+            }
+        }
+        
         // 处理 v2rayN 客户端导出的订阅格式
         // 格式示例：
         // ----------------------------
