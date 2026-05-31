@@ -3358,6 +3358,100 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             if (explodeSurge(sub, nodes))
                 return;
         }
+        // 处理 v2rayN 客户端导出的订阅格式
+        // 格式示例：
+        // ----------------------------
+        // v2rayn://hysteria2/Base64JSONConfig
+        // v2rayn://tuic/Base64JSONConfig
+        if (sub.find("v2rayn://") != std::string::npos) {
+            std::stringstream v2rayn_stream(sub);
+            std::string v2rayn_line;
+            std::string v2rayn_nodes;
+            while (std::getline(v2rayn_stream, v2rayn_line)) {
+                if (v2rayn_line.rfind('\r') != std::string::npos)
+                    v2rayn_line.pop_back();
+                if (!startsWith(v2rayn_line, "v2rayn://"))
+                    continue;
+                // 去掉 "v2rayn://" 前缀
+                std::string node_config = v2rayn_line.substr(9);
+                // 找到第一个 '/'，后面是Base64配置
+                size_t slash_pos = node_config.find('/');
+                if (slash_pos == std::string::npos)
+                    continue;
+                std::string protocol = node_config.substr(0, slash_pos);
+                std::string config_b64 = node_config.substr(slash_pos + 1);
+                
+                // 解码Base64配置为JSON
+                std::string json_str = urlSafeBase64Decode(config_b64);
+                
+                // 解析JSON并提取节点信息
+                try {
+                    rapidjson::Document json;
+                    json.Parse(json_str.c_str());
+                    if (!json.HasParseError() && json.IsObject()) {
+                        std::string address, port, password, remarks;
+                        
+                        // 提取通用字段
+                        if (json.HasMember("Address") && json["Address"].IsString())
+                            address = json["Address"].GetString();
+                        if (json.HasMember("Port") && json["Port"].IsInt())
+                            port = std::to_string(json["Port"].GetInt());
+                        if (json.HasMember("Password") && json["Password"].IsString())
+                            password = json["Password"].GetString();
+                        if (json.HasMember("Remarks") && json["Remarks"].IsString())
+                            remarks = json["Remarks"].GetString();
+                        
+                        // 根据协议类型构建节点URI
+                        if (protocol == "hysteria2" && !address.empty() && !port.empty()) {
+                            std::string uri = "hysteria2://" + password + "@" + address + ":" + port;
+                            // 添加可选参数
+                            if (json.HasMember("StreamSecurity") && json["StreamSecurity"].IsString()) {
+                                std::string security = json["StreamSecurity"].GetString();
+                                if (security == "tls") {
+                                    uri += "?insecure=1";
+                                }
+                            }
+                            if (!remarks.empty()) {
+                                uri += "#" + urlEncode(remarks);
+                            }
+                            v2rayn_nodes += uri + "\n";
+                        }
+                        else if (protocol == "tuic" && !address.empty() && !port.empty()) {
+                            // TUIC需要uuid和password
+                            std::string uuid = password;  // v2rayN中password可能包含uuid
+                            std::string tuic_pass = password;
+                            if (json.HasMember("UserId") && json["UserId"].IsString())
+                                uuid = json["UserId"].GetString();
+                            
+                            std::string uri = "tuic://" + uuid + ":" + tuic_pass + "@" + address + ":" + port;
+                            // 添加参数
+                            std::string params = "?";
+                            if (json.HasMember("CongestionControl") && json["CongestionControl"].IsString())
+                                params += "congestion_control=" + std::string(json["CongestionControl"].GetString()) + "&";
+                            if (json.HasMember("Alpn") && json["Alpn"].IsString())
+                                params += "alpn=" + std::string(json["Alpn"].GetString()) + "&";
+                            if (json.HasMember("AllowInsecure") && json["AllowInsecure"].IsBool() && json["AllowInsecure"].GetBool())
+                                params += "allow_insecure=1&";
+                            if (json.HasMember("Sni") && json["Sni"].IsString())
+                                params += "sni=" + std::string(json["Sni"].GetString()) + "&";
+                            
+                            if (params.size() > 1)  // 如果有参数
+                                uri += params;
+                            if (!remarks.empty())
+                                uri += "#" + urlEncode(remarks);
+                            v2rayn_nodes += uri + "\n";
+                        }
+                        // 其他协议类型可以继续添加...
+                    }
+                } catch (...) {
+                    // JSON解析失败，忽略
+                }
+            }
+            // 如果成功解析了v2rayN节点，替换原始内容
+            if (!v2rayn_nodes.empty()) {
+                sub = v2rayn_nodes;
+            }
+        }
         strstream << sub;
         char delimiter =
                 count(sub.begin(), sub.end(), '\n') < 1 ? count(sub.begin(), sub.end(), '\r') < 1 ? ' ' : '\r' : '\n';
