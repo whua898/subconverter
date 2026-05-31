@@ -31,6 +31,10 @@ std::mutex cache_rw_lock;
 
 RWLock cache_rw_lock;
 
+// curl共享对象，用于DNS缓存和连接复用
+static CURLSH *curl_share_handle = nullptr;
+static std::mutex curl_share_mutex;
+
 //std::string user_agent_str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36";
 static auto user_agent_str = "subconverter/" VERSION " cURL/" LIBCURL_VERSION;
 
@@ -45,6 +49,13 @@ static inline void curl_init()
     if(!init)
     {
         curl_global_init(CURL_GLOBAL_ALL);
+        
+        // 创建curl共享对象，用于DNS缓存和连接复用
+        curl_share_handle = curl_share_init();
+        curl_share_setopt(curl_share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+        curl_share_setopt(curl_share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+        curl_share_setopt(curl_share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+        
         init = true;
     }
 }
@@ -134,6 +145,21 @@ static inline void curl_set_common_options(CURL *curl_handle, const char *url, c
     curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 30L);  // 增加超时时间到30秒
     curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);  // 连接超时10秒
+    
+    // 启用长连接和连接复用
+    curl_easy_setopt(curl_handle, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(curl_handle, CURLOPT_TCP_KEEPIDLE, 120L);
+    curl_easy_setopt(curl_handle, CURLOPT_TCP_KEEPINTVL, 60L);
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handle, CURLOPT_UNRESTRICTED_AUTH, 1L);
+    
+    // 使用共享对象（DNS缓存、SSL会话缓存、连接复用）
+    if(curl_share_handle)
+        curl_easy_setopt(curl_handle, CURLOPT_SHARE, curl_share_handle);
+    
+    // 启用HTTP/2多路复用（如果服务器支持）
+    curl_easy_setopt(curl_handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
+    
     curl_easy_setopt(curl_handle, CURLOPT_COOKIEFILE, "");
     if(data)
     {
