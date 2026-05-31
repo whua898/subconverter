@@ -2833,7 +2833,18 @@ int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes) {
     }
     
     // 如果是 JSON 数组格式，跳过配置类型检测，直接走订阅解析路径
-    bool is_json_array = startsWith(trimmed, "[{\"") || startsWith(trimmed, "\n[{\"");
+    // 需要跳过空白字符检测：[\n    { 或 [{" 都应该匹配
+    bool is_json_array = startsWith(trimmed, "[{\"");
+    if (!is_json_array) {
+        // 跳过空白字符后再检测
+        std::string trimmed_no_ws;
+        for (char c : trimmed) {
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+                trimmed_no_ws += c;
+            }
+        }
+        is_json_array = startsWith(trimmed_no_ws, "[{\"");
+    }
     bool is_single_xray = (startsWith(trimmed, "{\"remarks\"") || startsWith(trimmed, "\n{\"remarks\"")) && 
                           (strFind(content, "\"outbounds\"") && strFind(content, "\"inbounds\""));
     bool is_singbox = startsWith(trimmed, "{\"type\"") || startsWith(trimmed, "\n{\"type\"");
