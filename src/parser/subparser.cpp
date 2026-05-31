@@ -2820,14 +2820,25 @@ int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes) {
     ConfType filetype = ConfType::Unknow;
 
     // 优先检测 JSON 数组格式的订阅（BPB /sub/normal/ 返回的格式）
-    // 如果以 [{ 开头，说明是订阅数组，不是单个配置文件
+    // 支持三种格式：
+    // 1. JSON 数组：[{"remarks":"...", "outbounds":[...]}]
+    // 2. 单个完整配置文件：{"remarks":"...", "outbounds":[...], "inbounds":[...]}
+    // 3. Singbox 格式：{"type":"vless","server":"...","server_port":...}
+    // 4. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
+    
     std::string trimmed = content;
-    size_t first_bracket = trimmed.find('[');
+    size_t first_bracket = trimmed.find_first_of("[{");
     if (first_bracket != std::string::npos) {
         trimmed = trimmed.substr(first_bracket);
     }
+    
     // 如果是 JSON 数组格式，跳过配置类型检测，直接走订阅解析路径
-    if (!startsWith(trimmed, "[{\"") && !startsWith(trimmed, "\n[{\"")) {
+    bool is_json_array = startsWith(trimmed, "[{\"") || startsWith(trimmed, "\n[{\"");
+    bool is_single_xray = (startsWith(trimmed, "{\"remarks\"") || startsWith(trimmed, "\n{\"remarks\"")) && 
+                          (strFind(content, "\"outbounds\"") && strFind(content, "\"inbounds\""));
+    bool is_singbox = startsWith(trimmed, "{\"type\"") || startsWith(trimmed, "\n{\"type\"");
+    
+    if (!is_json_array && !is_single_xray && !is_singbox) {
         if (strFind(content, "\"version\""))
             filetype = ConfType::SS;
         else if (strFind(content, "\"serverSubscribes\""))
