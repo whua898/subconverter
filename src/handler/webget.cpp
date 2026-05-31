@@ -34,6 +34,99 @@ RWLock cache_rw_lock;
 // curl共享对象，用于DNS缓存和连接复用
 static CURLSH *curl_share_handle = nullptr;
 static std::mutex curl_share_mutex;
+static std::mutex curl_dns_mutex;
+static std::mutex curl_ssl_mutex;
+static std::mutex curl_connect_mutex;
+
+// curl连接池，用于保持长连接和复用
+static std::vector<CURL*> curl_pool;
+static std::mutex curl_pool_mutex;
+static const size_t MAX_CURL_POOL_SIZE = 10;  // 最大连接池大小
+
+// curl连接池辅助函数
+static CURL* curl_pool_get()
+{
+    std::lock_guard<std::mutex> lock(curl_pool_mutex);
+    if(!curl_pool.empty())
+    {
+        CURL* handle = curl_pool.back();
+        curl_pool.pop_back();
+        return handle;
+    }
+    return curl_easy_init();  // 池为空时创建新连接
+}
+
+static void curl_pool_put(CURL* handle)
+{
+    // 重置handle状态，准备下次复用
+    curl_easy_reset(handle);
+    
+    std::lock_guard<std::mutex> lock(curl_pool_mutex);
+    if(curl_pool.size() < MAX_CURL_POOL_SIZE)
+    {
+        curl_pool.push_back(handle);
+    }
+    else
+    {
+        curl_easy_cleanup(handle);  // 池满时销毁多余连接
+    }
+}
+
+static void curl_pool_cleanup()
+{
+    std::lock_guard<std::mutex> lock(curl_pool_mutex);
+    for(auto& handle : curl_pool)
+    {
+        curl_easy_cleanup(handle);
+    }
+    curl_pool.clear();
+}
+
+// curl共享锁回调函数（多线程安全）
+static void curl_share_lock_callback(CURL *handle, CURL.lock_data data, CURL.lock_access access, void *userptr)
+{
+    (void)handle;
+    (void)access;
+    (void)userptr;
+    
+    switch(data)
+    {
+    case CURL_LOCK_DATA_DNS:
+        curl_dns_mutex.lock();
+        break;
+    case CURL_LOCK_DATA_SSL_SESSION:
+        curl_ssl_mutex.lock();
+        break;
+    case CURL_LOCK_DATA_CONNECT:
+        curl_connect_mutex.lock();
+        break;
+    default:
+        curl_share_mutex.lock();
+        break;
+    }
+}
+
+static void curl_share_unlock_callback(CURL *handle, CURL.lock_data data, void *userptr)
+{
+    (void)handle;
+    (void)userptr;
+    
+    switch(data)
+    {
+    case CURL_LOCK_DATA_DNS:
+        curl_dns_mutex.unlock();
+        break;
+    case CURL_LOCK_DATA_SSL_SESSION:
+        curl_ssl_mutex.unlock();
+        break;
+    case CURL_LOCK_DATA_CONNECT:
+        curl_connect_mutex.unlock();
+        break;
+    default:
+        curl_share_mutex.unlock();
+        break;
+    }
+}
 
 //std::string user_agent_str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36";
 static auto user_agent_str = "subconverter/" VERSION " cURL/" LIBCURL_VERSION;
@@ -52,6 +145,12 @@ static inline void curl_init()
         
         // 创建curl共享对象，用于DNS缓存和连接复用
         curl_share_handle = curl_share_init();
+        
+        // 设置锁回调函数，支持多线程并发访问
+        curl_share_setopt(curl_share_handle, CURLSHOPT_LOCKFUNC, curl_share_lock_callback);
+        curl_share_setopt(curl_share_handle, CURLSHOPT_UNLOCKFUNC, curl_share_unlock_callback);
+        
+        // 共享DNS、SSL会话和连接数据
         curl_share_setopt(curl_share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
         curl_share_setopt(curl_share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
         curl_share_setopt(curl_share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
@@ -173,7 +272,6 @@ static inline void curl_set_common_options(CURL *curl_handle, const char *url, c
 //static std::string curlGet(const std::string &url, const std::string &proxy, std::string &response_headers, CURLcode &return_code, const string_map &request_headers)
 static int curlGet(const FetchArgument &argument, FetchResult &result)
 {
-    CURL *curl_handle;
     std::string *data = result.content, new_url = argument.url;
     curl_slist *header_list = nullptr;
     defer(curl_slist_free_all(header_list);)
@@ -181,7 +279,8 @@ static int curlGet(const FetchArgument &argument, FetchResult &result)
 
     curl_init();
 
-    curl_handle = curl_easy_init();
+    // 从连接池获取handle，而不是创建新的
+    CURL *curl_handle = curl_pool_get();
     if(!argument.proxy.empty())
     {
         if(startsWith(argument.proxy, "cors:"))
@@ -299,7 +398,8 @@ static int curlGet(const FetchArgument &argument, FetchResult &result)
         curl_slist_free_all(cookies);
     }
 
-    curl_easy_cleanup(curl_handle);
+    // 将handle放回连接池，而不是销毁
+    curl_pool_put(curl_handle);
 
     if(data && !argument.keep_resp_on_fail)
     {
