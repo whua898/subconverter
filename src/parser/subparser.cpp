@@ -3481,7 +3481,9 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
         }
         
         // 尝试解析 Xray JSON 数组格式（BPB /sub/normal/ 路径返回的格式）
-        // 格式示例：[{"remarks":"节点1","outbounds":[...]}, {"remarks":"节点2","outbounds":[...]}]
+        // 支持两种格式：
+        // 1. Singbox 格式：{"type":"vless","server":"...","server_port":...}
+        // 2. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
         if (sub.find("[{\"") != std::string::npos || sub.find("\n[{\"") != std::string::npos) {
             std::string trimmed = sub;
             // 去除可能的换行符
@@ -3512,50 +3514,112 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                             if (!json[i]["outbounds"][j].IsObject()) continue;
                             
                             auto &outbound = json[i]["outbounds"][j];
-                            if (!outbound.HasMember("type") || !outbound["type"].IsString()) continue;
                             
-                            std::string type = outbound["type"].GetString();
-                            if (type != "vless" && type != "trojan") continue;
+                            // 支持 Xray 核心格式（protocol 字段）
+                            std::string protocol;
+                            if (outbound.HasMember("protocol") && outbound["protocol"].IsString()) {
+                                protocol = outbound["protocol"].GetString();
+                            }
+                            // 支持 Singbox 格式（type 字段）
+                            else if (outbound.HasMember("type") && outbound["type"].IsString()) {
+                                protocol = outbound["type"].GetString();
+                            }
+                            else {
+                                continue;
+                            }
+                            
+                            if (protocol != "vless" && protocol != "trojan") continue;
                             
                             // 提取必要字段
                             std::string server, server_port, uuid, password, flow, sni;
                             std::string network = "tcp", path, host, security = "none";
                             
-                            if (outbound.HasMember("server") && outbound["server"].IsString())
-                                server = outbound["server"].GetString();
-                            if (outbound.HasMember("server_port")) {
-                                if (outbound["server_port"].IsInt())
-                                    server_port = std::to_string(outbound["server_port"].GetInt());
-                                else if (outbound["server_port"].IsString())
-                                    server_port = outbound["server_port"].GetString();
-                            }
-                            
-                            if (type == "vless") {
-                                if (outbound.HasMember("uuid") && outbound["uuid"].IsString())
-                                    uuid = outbound["uuid"].GetString();
-                                if (outbound.HasMember("flow") && outbound["flow"].IsString())
-                                    flow = outbound["flow"].GetString();
-                                
-                                // 提取 transport
-                                if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
-                                    auto &transport = outbound["transport"];
-                                    if (transport.HasMember("type") && transport["type"].IsString())
-                                        network = transport["type"].GetString();
-                                    if (transport.HasMember("path") && transport["path"].IsString())
-                                        path = transport["path"].GetString();
-                                    if (transport.HasMember("headers") && transport["headers"].IsObject()) {
-                                        if (transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString())
-                                            host = transport["headers"]["Host"].GetString();
+                            if (protocol == "vless") {
+                                // Xray 核心格式：从 settings.vnext 提取
+                                if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                    auto &settings = outbound["settings"];
+                                    if (settings.HasMember("vnext") && settings["vnext"].IsArray() && !settings["vnext"].Empty()) {
+                                        auto &vnext = settings["vnext"][0];
+                                        if (vnext.HasMember("address") && vnext["address"].IsString())
+                                            server = vnext["address"].GetString();
+                                        if (vnext.HasMember("port")) {
+                                            if (vnext["port"].IsInt())
+                                                server_port = std::to_string(vnext["port"].GetInt());
+                                            else if (vnext["port"].IsString())
+                                                server_port = vnext["port"].GetString();
+                                        }
+                                        if (vnext.HasMember("users") && vnext["users"].IsArray() && !vnext["users"].Empty()) {
+                                            auto &user = vnext["users"][0];
+                                            if (user.HasMember("id") && user["id"].IsString())
+                                                uuid = user["id"].GetString();
+                                            if (user.HasMember("flow") && user["flow"].IsString())
+                                                flow = user["flow"].GetString();
+                                        }
                                     }
                                 }
+                                // Singbox 格式：直接提取字段
+                                else {
+                                    if (outbound.HasMember("server") && outbound["server"].IsString())
+                                        server = outbound["server"].GetString();
+                                    if (outbound.HasMember("server_port")) {
+                                        if (outbound["server_port"].IsInt())
+                                            server_port = std::to_string(outbound["server_port"].GetInt());
+                                        else if (outbound["server_port"].IsString())
+                                            server_port = outbound["server_port"].GetString();
+                                    }
+                                    if (outbound.HasMember("uuid") && outbound["uuid"].IsString())
+                                        uuid = outbound["uuid"].GetString();
+                                    if (outbound.HasMember("flow") && outbound["flow"].IsString())
+                                        flow = outbound["flow"].GetString();
+                                }
                                 
-                                // 提取 TLS
-                                if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
-                                    auto &tls = outbound["tls"];
-                                    if (tls.HasMember("enabled") && tls["enabled"].IsBool() && tls["enabled"].GetBool())
-                                        security = "tls";
-                                    if (tls.HasMember("server_name") && tls["server_name"].IsString())
-                                        sni = tls["server_name"].GetString();
+                                // Xray 核心格式：从 streamSettings 提取传输配置
+                                if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
+                                    auto &streamSettings = outbound["streamSettings"];
+                                    if (streamSettings.HasMember("network") && streamSettings["network"].IsString())
+                                        network = streamSettings["network"].GetString();
+                                    if (streamSettings.HasMember("security") && streamSettings["security"].IsString())
+                                        security = streamSettings["security"].GetString();
+                                    
+                                    // 提取 ws 配置
+                                    if (network == "ws" && streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
+                                        auto &wsSettings = streamSettings["wsSettings"];
+                                        if (wsSettings.HasMember("path") && wsSettings["path"].IsString())
+                                            path = wsSettings["path"].GetString();
+                                        if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject()) {
+                                            if (wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString())
+                                                host = wsSettings["headers"]["Host"].GetString();
+                                        }
+                                    }
+                                    
+                                    // 提取 tls 配置
+                                    if (streamSettings.HasMember("tlsSettings") && streamSettings["tlsSettings"].IsObject()) {
+                                        auto &tlsSettings = streamSettings["tlsSettings"];
+                                        if (tlsSettings.HasMember("serverName") && tlsSettings["serverName"].IsString())
+                                            sni = tlsSettings["serverName"].GetString();
+                                    }
+                                }
+                                // Singbox 格式：从 transport 和 tls 提取
+                                else {
+                                    if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
+                                        auto &transport = outbound["transport"];
+                                        if (transport.HasMember("type") && transport["type"].IsString())
+                                            network = transport["type"].GetString();
+                                        if (transport.HasMember("path") && transport["path"].IsString())
+                                            path = transport["path"].GetString();
+                                        if (transport.HasMember("headers") && transport["headers"].IsObject()) {
+                                            if (transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString())
+                                                host = transport["headers"]["Host"].GetString();
+                                        }
+                                    }
+                                    
+                                    if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
+                                        auto &tls = outbound["tls"];
+                                        if (tls.HasMember("enabled") && tls["enabled"].IsBool() && tls["enabled"].GetBool())
+                                            security = "tls";
+                                        if (tls.HasMember("server_name") && tls["server_name"].IsString())
+                                            sni = tls["server_name"].GetString();
+                                    }
                                 }
                                 
                                 // 构建 VLESS URI
@@ -3572,28 +3636,79 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                     xray_nodes += uri + "\n";
                                 }
                             }
-                            else if (type == "trojan") {
-                                if (outbound.HasMember("password") && outbound["password"].IsString())
-                                    password = outbound["password"].GetString();
-                                
-                                // 提取 transport
-                                if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
-                                    auto &transport = outbound["transport"];
-                                    if (transport.HasMember("type") && transport["type"].IsString())
-                                        network = transport["type"].GetString();
-                                    if (transport.HasMember("path") && transport["path"].IsString())
-                                        path = transport["path"].GetString();
-                                    if (transport.HasMember("headers") && transport["headers"].IsObject()) {
-                                        if (transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString())
-                                            host = transport["headers"]["Host"].GetString();
+                            else if (protocol == "trojan") {
+                                // Xray 核心格式：从 settings.servers 提取
+                                if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                    auto &settings = outbound["settings"];
+                                    if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
+                                        auto &srv = settings["servers"][0];
+                                        if (srv.HasMember("address") && srv["address"].IsString())
+                                            server = srv["address"].GetString();
+                                        if (srv.HasMember("port")) {
+                                            if (srv["port"].IsInt())
+                                                server_port = std::to_string(srv["port"].GetInt());
+                                            else if (srv["port"].IsString())
+                                                server_port = srv["port"].GetString();
+                                        }
+                                        if (srv.HasMember("password") && srv["password"].IsString())
+                                            password = srv["password"].GetString();
                                     }
                                 }
+                                // Singbox 格式：直接提取字段
+                                else {
+                                    if (outbound.HasMember("server") && outbound["server"].IsString())
+                                        server = outbound["server"].GetString();
+                                    if (outbound.HasMember("server_port")) {
+                                        if (outbound["server_port"].IsInt())
+                                            server_port = std::to_string(outbound["server_port"].GetInt());
+                                        else if (outbound["server_port"].IsString())
+                                            server_port = outbound["server_port"].GetString();
+                                    }
+                                    if (outbound.HasMember("password") && outbound["password"].IsString())
+                                        password = outbound["password"].GetString();
+                                }
                                 
-                                // 提取 TLS
-                                if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
-                                    auto &tls = outbound["tls"];
-                                    if (tls.HasMember("server_name") && tls["server_name"].IsString())
-                                        sni = tls["server_name"].GetString();
+                                // Xray 核心格式：从 streamSettings 提取
+                                if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
+                                    auto &streamSettings = outbound["streamSettings"];
+                                    if (streamSettings.HasMember("network") && streamSettings["network"].IsString())
+                                        network = streamSettings["network"].GetString();
+                                    
+                                    if (network == "ws" && streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
+                                        auto &wsSettings = streamSettings["wsSettings"];
+                                        if (wsSettings.HasMember("path") && wsSettings["path"].IsString())
+                                            path = wsSettings["path"].GetString();
+                                        if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject()) {
+                                            if (wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString())
+                                                host = wsSettings["headers"]["Host"].GetString();
+                                        }
+                                    }
+                                    
+                                    if (streamSettings.HasMember("tlsSettings") && streamSettings["tlsSettings"].IsObject()) {
+                                        auto &tlsSettings = streamSettings["tlsSettings"];
+                                        if (tlsSettings.HasMember("serverName") && tlsSettings["serverName"].IsString())
+                                            sni = tlsSettings["serverName"].GetString();
+                                    }
+                                }
+                                // Singbox 格式：从 transport 和 tls 提取
+                                else {
+                                    if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
+                                        auto &transport = outbound["transport"];
+                                        if (transport.HasMember("type") && transport["type"].IsString())
+                                            network = transport["type"].GetString();
+                                        if (transport.HasMember("path") && transport["path"].IsString())
+                                            path = transport["path"].GetString();
+                                        if (transport.HasMember("headers") && transport["headers"].IsObject()) {
+                                            if (transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString())
+                                                host = transport["headers"]["Host"].GetString();
+                                        }
+                                    }
+                                    
+                                    if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
+                                        auto &tls = outbound["tls"];
+                                        if (tls.HasMember("server_name") && tls["server_name"].IsString())
+                                            sni = tls["server_name"].GetString();
+                                    }
                                 }
                                 
                                 // 构建 Trojan URI
