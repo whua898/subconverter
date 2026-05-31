@@ -3358,6 +3358,11 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             if (explodeSurge(sub, nodes))
                 return;
         }
+        // 处理 v2rayn:// 格式的订阅（v2rayN 客户端导出的格式）
+        if (startsWith(sub, "v2rayn://")) {
+            // 去掉 "v2rayn://" 前缀，然后按行分割
+            sub = sub.substr(9);
+        }
         strstream << sub;
         char delimiter =
                 count(sub.begin(), sub.end(), '\n') < 1 ? count(sub.begin(), sub.end(), '\r') < 1 ? ' ' : '\r' : '\n';
