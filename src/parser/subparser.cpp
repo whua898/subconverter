@@ -3490,14 +3490,16 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                 return;
         }
         
-        // 尝试解析 Xray JSON 数组格式（BPB /sub/normal/ 路径返回的格式）
-        // 支持两种格式：
-        // 1. Singbox 格式：{"type":"vless","server":"...","server_port":...}
-        // 2. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
-        if (sub.find("[{\"") != std::string::npos || sub.find("\n[{\"") != std::string::npos) {
+        // 尝试解析 Xray JSON 格式（BPB /sub/normal/ 路径返回的格式）
+        // 支持三种格式：
+        // 1. JSON 数组：[{"remarks":"...", "outbounds":[...]}]
+        // 2. 单个完整配置文件：{"remarks":"...", "outbounds":[...], "inbounds":[...]}
+        // 3. Singbox 格式：{"type":"vless","server":"...","server_port":...}
+        // 4. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
+        if (sub.find("[{\"") != std::string::npos || sub.find("\n[{\"") != std::string::npos || sub.find("{\"remarks\"") != std::string::npos || sub.find("\n{\"remarks\"") != std::string::npos) {
             std::string trimmed = sub;
-            // 去除可能的换行符
-            size_t json_start = trimmed.find('[');
+            // 找到第一个 { 开始的位置
+            size_t json_start = trimmed.find('{');
             if (json_start != std::string::npos) {
                 trimmed = trimmed.substr(json_start);
             }
@@ -3505,25 +3507,22 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             try {
                 rapidjson::Document json;
                 json.Parse(trimmed.c_str());
-                if (!json.HasParseError() && json.IsArray() && !json.Empty()) {
-                    std::string xray_nodes;
-                    for (rapidjson::SizeType i = 0; i < json.Size(); ++i) {
-                        if (!json[i].IsObject()) continue;
+                if (!json.HasParseError() && json.IsObject()) {
+                    // 检查是否有 outbounds 字段（BPB 格式）
+                    if (json.HasMember("outbounds") && json["outbounds"].IsArray()) {
+                        std::string xray_nodes;
                         
                         // 提取节点名称
                         std::string remarks;
-                        if (json[i].HasMember("remarks") && json[i]["remarks"].IsString()) {
-                            remarks = json[i]["remarks"].GetString();
+                        if (json.HasMember("remarks") && json["remarks"].IsString()) {
+                            remarks = json["remarks"].GetString();
                         }
                         
-                        // 提取 outbounds 数组
-                        if (!json[i].HasMember("outbounds") || !json[i]["outbounds"].IsArray()) continue;
-                        
                         // 遍历 outbounds，找到 VLESS/Trojan 类型的节点
-                        for (rapidjson::SizeType j = 0; j < json[i]["outbounds"].Size(); ++j) {
-                            if (!json[i]["outbounds"][j].IsObject()) continue;
+                        for (rapidjson::SizeType j = 0; j < json["outbounds"].Size(); ++j) {
+                            if (!json["outbounds"][j].IsObject()) continue;
                             
-                            auto &outbound = json[i]["outbounds"][j];
+                            auto &outbound = json["outbounds"][j];
                             
                             // 支持 Xray 核心格式（protocol 字段）
                             std::string protocol;
