@@ -3498,8 +3498,8 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
         // 4. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
         if (sub.find("[{\"") != std::string::npos || sub.find("\n[{\"") != std::string::npos || sub.find("{\"remarks\"") != std::string::npos || sub.find("\n{\"remarks\"") != std::string::npos) {
             std::string trimmed = sub;
-            // 找到第一个 { 开始的位置
-            size_t json_start = trimmed.find('{');
+            // 找到第一个 [ 或 { 开始的位置
+            size_t json_start = trimmed.find_first_of("[{");
             if (json_start != std::string::npos) {
                 trimmed = trimmed.substr(json_start);
             }
@@ -3507,29 +3507,130 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             try {
                 rapidjson::Document json;
                 json.Parse(trimmed.c_str());
-                if (!json.HasParseError() && json.IsObject()) {
-                    // 检查是否有 outbounds 字段（BPB 格式）
-                    if (json.HasMember("outbounds") && json["outbounds"].IsArray()) {
-                        std::string xray_nodes;
-                        
-                        // 提取节点名称
+                if (!json.HasParseError()) {
+                    std::string xray_nodes;
+                    
+                    // 支持 JSON 数组格式：[{...}, {...}]
+                    if (json.IsArray()) {
+                        // 遍历数组中的每个配置对象
+                        for (rapidjson::SizeType i = 0; i < json.Size(); ++i) {
+                            if (!json[i].IsObject()) continue;
+                            auto &config = json[i];
+                            
+                            if (!config.HasMember("outbounds") || !config["outbounds"].IsArray()) continue;
+                            
+                            // 提取节点名称
+                            std::string remarks;
+                            if (config.HasMember("remarks") && config["remarks"].IsString()) {
+                                remarks = config["remarks"].GetString();
+                            }
+                            
+                            // 遍历 outbounds
+                            for (rapidjson::SizeType j = 0; j < config["outbounds"].Size(); ++j) {
+                                if (!config["outbounds"][j].IsObject()) continue;
+                                auto &outbound = config["outbounds"][j];
+                                
+                                std::string protocol;
+                                if (outbound.HasMember("protocol") && outbound["protocol"].IsString()) {
+                                    protocol = outbound["protocol"].GetString();
+                                } else if (outbound.HasMember("type") && outbound["type"].IsString()) {
+                                    protocol = outbound["type"].GetString();
+                                } else {
+                                    continue;
+                                }
+                                
+                                if (protocol != "vless" && protocol != "trojan") continue;
+                                
+                                // 提取字段并构建 URI（复用下面的逻辑）
+                                std::string server, server_port, uuid, password, flow, sni;
+                                std::string network = "tcp", path, host, security = "none";
+                                
+                                if (protocol == "vless") {
+                                    if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                        auto &settings = outbound["settings"];
+                                        if (settings.HasMember("vnext") && settings["vnext"].IsArray() && !settings["vnext"].Empty()) {
+                                            auto &vnext = settings["vnext"][0];
+                                            if (vnext.HasMember("address") && vnext["address"].IsString()) server = vnext["address"].GetString();
+                                            if (vnext.HasMember("port")) server_port = vnext["port"].IsInt() ? std::to_string(vnext["port"].GetInt()) : vnext["port"].GetString();
+                                            if (vnext.HasMember("users") && vnext["users"].IsArray() && !vnext["users"].Empty()) {
+                                                auto &user = vnext["users"][0];
+                                                if (user.HasMember("id") && user["id"].IsString()) uuid = user["id"].GetString();
+                                                if (user.HasMember("flow") && user["flow"].IsString()) flow = user["flow"].GetString();
+                                            }
+                                        }
+                                    }
+                                    if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
+                                        auto &streamSettings = outbound["streamSettings"];
+                                        if (streamSettings.HasMember("network") && streamSettings["network"].IsString()) network = streamSettings["network"].GetString();
+                                        if (streamSettings.HasMember("security") && streamSettings["security"].IsString()) security = streamSettings["security"].GetString();
+                                        if (network == "ws" && streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
+                                            auto &wsSettings = streamSettings["wsSettings"];
+                                            if (wsSettings.HasMember("path") && wsSettings["path"].IsString()) path = wsSettings["path"].GetString();
+                                            if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject() && wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString()) host = wsSettings["headers"]["Host"].GetString();
+                                        }
+                                        if (streamSettings.HasMember("tlsSettings") && streamSettings["tlsSettings"].IsObject()) {
+                                            auto &tlsSettings = streamSettings["tlsSettings"];
+                                            if (tlsSettings.HasMember("serverName") && tlsSettings["serverName"].IsString()) sni = tlsSettings["serverName"].GetString();
+                                        }
+                                    }
+                                    if (!server.empty() && !server_port.empty() && !uuid.empty()) {
+                                        std::string uri = "vless://" + uuid + "@" + server + ":" + server_port;
+                                        uri += "?encryption=none&security=" + security;
+                                        if (!network.empty()) uri += "&type=" + network;
+                                        if (!host.empty()) uri += "&host=" + urlEncode(host);
+                                        if (!path.empty()) uri += "&path=" + urlEncode(path);
+                                        if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
+                                        if (!flow.empty()) uri += "&flow=" + flow;
+                                        if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                        xray_nodes += uri + "\n";
+                                    }
+                                } else if (protocol == "trojan") {
+                                    if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                        auto &settings = outbound["settings"];
+                                        if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
+                                            auto &srv = settings["servers"][0];
+                                            if (srv.HasMember("address") && srv["address"].IsString()) server = srv["address"].GetString();
+                                            if (srv.HasMember("port")) server_port = srv["port"].IsInt() ? std::to_string(srv["port"].GetInt()) : srv["port"].GetString();
+                                            if (srv.HasMember("password") && srv["password"].IsString()) password = srv["password"].GetString();
+                                        }
+                                    }
+                                    if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
+                                        auto &streamSettings = outbound["streamSettings"];
+                                        if (streamSettings.HasMember("network") && streamSettings["network"].IsString()) network = streamSettings["network"].GetString();
+                                        if (network == "ws" && streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
+                                            auto &wsSettings = streamSettings["wsSettings"];
+                                            if (wsSettings.HasMember("path") && wsSettings["path"].IsString()) path = wsSettings["path"].GetString();
+                                            if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject() && wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString()) host = wsSettings["headers"]["Host"].GetString();
+                                        }
+                                    }
+                                    if (!server.empty() && !server_port.empty() && !password.empty()) {
+                                        std::string uri = "trojan://" + password + "@" + server + ":" + server_port;
+                                        uri += "?type=" + network;
+                                        if (!host.empty()) uri += "&host=" + urlEncode(host);
+                                        if (!path.empty()) uri += "&path=" + urlEncode(path);
+                                        if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
+                                        if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                        xray_nodes += uri + "\n";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // 支持单个对象格式：{...}
+                    else if (json.IsObject() && json.HasMember("outbounds") && json["outbounds"].IsArray()) {
                         std::string remarks;
                         if (json.HasMember("remarks") && json["remarks"].IsString()) {
                             remarks = json["remarks"].GetString();
                         }
                         
-                        // 遍历 outbounds，找到 VLESS/Trojan 类型的节点
                         for (rapidjson::SizeType j = 0; j < json["outbounds"].Size(); ++j) {
                             if (!json["outbounds"][j].IsObject()) continue;
-                            
                             auto &outbound = json["outbounds"][j];
                             
-                            // 支持 Xray 核心格式（protocol 字段）
                             std::string protocol;
                             if (outbound.HasMember("protocol") && outbound["protocol"].IsString()) {
                                 protocol = outbound["protocol"].GetString();
                             }
-                            // 支持 Singbox 格式（type 字段）
                             else if (outbound.HasMember("type") && outbound["type"].IsString()) {
                                 protocol = outbound["type"].GetString();
                             }
