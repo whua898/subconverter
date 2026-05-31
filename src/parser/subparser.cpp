@@ -3733,11 +3733,11 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                 }
                             }
                         }
-                    }
-                    
-                    // 如果成功解析了 Xray JSON 节点，替换原始内容
-                    if (!xray_nodes.empty()) {
-                        sub = xray_nodes;
+                        
+                        // 如果成功解析了 Xray JSON 节点，替换原始内容
+                        if (!xray_nodes.empty()) {
+                            sub = xray_nodes;
+                        }
                     }
                 }
             } catch (...) {
