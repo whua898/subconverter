@@ -4202,7 +4202,12 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
             }
             // 如果成功解析了v2rayN节点，替换原始内容
             if (!v2rayn_nodes.empty()) {
-                sub = v2rayn_nodes;
+                if (!v2rayn_nodes.empty()) {
+                    if (sub.empty() || sub.find("://") == std::string::npos)
+                        sub = v2rayn_nodes;
+                    else
+                        sub += "\n" + v2rayn_nodes;
+                }
             }
         }
         strstream << sub;
