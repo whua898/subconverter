@@ -1406,7 +1406,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                         proxyStr += "&host=" + urlEncode(host);
                     if (!path.empty())
                         proxyStr += "&path=" + urlEncode(path);
-                } else if (x.AllowInsecure.has_value()) {
+                } else if (!x.AllowInsecure.is_undef()) {
                     proxyStr += "&allowInsecure=" + (x.AllowInsecure.get() ? "1" : "0");
                 }
                 proxyStr += "#" + urlEncode(remark);
