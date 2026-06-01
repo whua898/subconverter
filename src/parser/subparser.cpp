@@ -3861,7 +3861,10 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                         xray_nodes += uri + "\n";
                                     }
                                 } else if (protocol == "trojan") {
-                                    // Xray 核心格式：从 settings.servers 提取
+                                    // FIX: clear path/host carried over from previous protocol
+                                    path.clear();
+                                    host.clear();
+                                    // Extract from settings.servers (Xray core)
                                     if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
                                         auto &settings = outbound["settings"];
                                         if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
@@ -3871,7 +3874,7 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                             if (srv.HasMember("password") && srv["password"].IsString()) password = srv["password"].GetString();
                                         }
                                     }
-                                    // Xray 核心格式：从 streamSettings 提取
+                                    // Extract from streamSettings (Xray core)
                                     if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
                                         auto &streamSettings = outbound["streamSettings"];
                                         if (streamSettings.HasMember("network") && streamSettings["network"].IsString()) network = streamSettings["network"].GetString();
@@ -3879,13 +3882,25 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                             auto &tlsSettings = streamSettings["tlsSettings"];
                                             if (tlsSettings.HasMember("serverName") && tlsSettings["serverName"].IsString()) sni = tlsSettings["serverName"].GetString();
                                         }
+                                        // FIX: extract wsSettings.path and host for Trojan over WebSocket
+                                        if (streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
+                                            auto &wsSettings = streamSettings["wsSettings"];
+                                            if (wsSettings.HasMember("path") && wsSettings["path"].IsString()) path = wsSettings["path"].GetString();
+                                            if (wsSettings.HasMember("host") && wsSettings["host"].IsString()) {
+                                                host = wsSettings["host"].GetString();
+                                            } else if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject() && wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString()) {
+                                                host = wsSettings["headers"]["Host"].GetString();
+                                            }
+                                        }
                                     }
-                                    // 构建 Trojan URI
+                                    // Build Trojan URI
                                     if (!server.empty() && !server_port.empty() && !password.empty()) {
                                         std::string uri = "trojan://" + urlEncode(password) + "@" + server + ":" + server_port;
                                         uri += "?security=tls";
                                         if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
                                         if (!network.empty() && network != "tcp") uri += "&type=" + network;
+                                        if (!host.empty()) uri += "&host=" + urlEncode(host);
+                                        if (!path.empty()) uri += "&path=" + urlEncode(path);
                                         if (!remarks.empty()) uri += "#" + urlEncode(remarks);
                                         xray_nodes += uri + "\n";
                                     }
