@@ -3856,6 +3856,10 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                 }
                             }
                         }
+                        // 关键修复：数组分支构建的 xray_nodes 必须写回 sub，否则后续 explode() 拿不到节点
+                        if (!xray_nodes.empty()) {
+                            sub = xray_nodes;
+                        }
                     }
                     // 支持单个对象格式：{...}
                     else if (json.IsObject() && json.HasMember("outbounds") && json["outbounds"].IsArray()) {

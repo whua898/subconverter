@@ -142,6 +142,13 @@ int addNodes(std::string link, std::vector<Proxy> &allNodes, int groupID, parse_
         writeLog(LOG_TYPE_INFO, "Downloading subscription data...");
         if(startsWith(link, "surge:///install-config")) //surge config link
             link = urlDecode(getUrlArg(link, "url"));
+        // 修复：剥掉 URL fragment (例如 #💦 BPB Normal) 避免 libcurl 8.x+ 报 "URL using bad/illegal format"
+        // fragment 当作 remark 使用，BPB 面板常带 emoji 锚点
+        {
+            string_size fpos = link.rfind('#');
+            if (fpos != link.npos)
+                link = link.substr(0, fpos);
+        }
         strSub = webGet(link, proxy, global.cacheSubscription, &extra_headers, request_headers);
         /*
         if(strSub.size() == 0)

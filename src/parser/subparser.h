@@ -143,6 +143,10 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes);
 
 int explodeConf(const std::string &filepath, std::vector<Proxy> &nodes);
 
+// Parse a single Xray-core style outbound JSON object: {"protocol": "...", "settings": {...}, "streamSettings": {...}, "tag": "..."}
+// Used by explodeConfContent to handle BPB-style JSON array subscription where the protocol field is named "protocol".
+void explodeXrayJsonOutbound(const rapidjson::Value &item, std::vector<Proxy> &nodes);
+
 int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes);
 
 #endif // SUBPARSER_H_INCLUDED

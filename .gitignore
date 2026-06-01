@@ -9,3 +9,14 @@ scripts/yaml-cpp
 src/.DS_Store
 
 build
+
+# diagnostic temp files
+diag_*.bin
+diag_*.out
+diag_*.py
+source_raw.bin
+sub.bin
+sub.txt
+subconverter
+*.b64
+decode.log
