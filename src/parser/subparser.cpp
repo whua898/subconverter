@@ -3588,7 +3588,9 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                     continue;
                                 }
                                 
-                                if (protocol != "vless" && protocol != "trojan") continue;
+                                if (protocol != "vless" && protocol != "trojan" && protocol != "vmess" && 
+                                    protocol != "shadowsocks" && protocol != "ss" && protocol != "shadowsocksr" && 
+                                    protocol != "ssr" && protocol != "hysteria2" && protocol != "tuic") continue;
                                 
                                 // 提取字段并构建 URI（复用下面的逻辑）
                                 std::string server, server_port, uuid, password, flow, sni;
@@ -3633,31 +3635,223 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                         if (!remarks.empty()) uri += "#" + urlEncode(remarks);
                                         xray_nodes += uri + "\n";
                                     }
-                                } else if (protocol == "trojan") {
+                                } else if (protocol == "vmess") {
+                                    // VMess 协议解析
+                                    std::string vmess_uuid, vmess_aid, vmess_net, vmess_type, vmess_path, vmess_host, vmess_tls;
+                                    
+                                    // Xray 核心格式：从 settings.vnext 提取
+                                    if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                        auto &settings = outbound["settings"];
+                                        if (settings.HasMember("vnext") && settings["vnext"].IsArray() && !settings["vnext"].Empty()) {
+                                            auto &vnext = settings["vnext"][0];
+                                            if (vnext.HasMember("address") && vnext["address"].IsString()) server = vnext["address"].GetString();
+                                            if (vnext.HasMember("port")) server_port = vnext["port"].IsInt() ? std::to_string(vnext["port"].GetInt()) : vnext["port"].GetString();
+                                            if (vnext.HasMember("users") && vnext["users"].IsArray() && !vnext["users"].Empty()) {
+                                                auto &user = vnext["users"][0];
+                                                if (user.HasMember("id") && user["id"].IsString()) vmess_uuid = user["id"].GetString();
+                                                if (user.HasMember("alterId") && user["alterId"].IsInt()) vmess_aid = std::to_string(user["alterId"].GetInt());
+                                            }
+                                        }
+                                    }
+                                    // Singbox 格式：直接提取字段
+                                    else {
+                                        if (outbound.HasMember("server") && outbound["server"].IsString()) server = outbound["server"].GetString();
+                                        if (outbound.HasMember("server_port")) server_port = outbound["server_port"].IsInt() ? std::to_string(outbound["server_port"].GetInt()) : outbound["server_port"].GetString();
+                                        if (outbound.HasMember("uuid") && outbound["uuid"].IsString()) vmess_uuid = outbound["uuid"].GetString();
+                                        if (outbound.HasMember("alterId") && outbound["alterId"].IsInt()) vmess_aid = std::to_string(outbound["alterId"].GetInt());
+                                    }
+                                    
+                                    // 提取传输配置
+                                    if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
+                                        auto &streamSettings = outbound["streamSettings"];
+                                        if (streamSettings.HasMember("network") && streamSettings["network"].IsString()) vmess_net = streamSettings["network"].GetString();
+                                        if (streamSettings.HasMember("security") && streamSettings["security"].IsString()) vmess_tls = streamSettings["security"].GetString();
+                                        
+                                        if (vmess_net == "ws" && streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
+                                            auto &wsSettings = streamSettings["wsSettings"];
+                                            if (wsSettings.HasMember("path") && wsSettings["path"].IsString()) vmess_path = wsSettings["path"].GetString();
+                                            if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject() && wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString()) vmess_host = wsSettings["headers"]["Host"].GetString();
+                                        }
+                                    }
+                                    // Singbox 格式：从 transport 提取
+                                    else if (outbound.HasMember("transport") && outbound["transport"].IsObject()) {
+                                        auto &transport = outbound["transport"];
+                                        if (transport.HasMember("type") && transport["type"].IsString()) vmess_net = transport["type"].GetString();
+                                        if (transport.HasMember("path") && transport["path"].IsString()) vmess_path = transport["path"].GetString();
+                                        if (transport.HasMember("headers") && transport["headers"].IsObject() && transport["headers"].HasMember("Host") && transport["headers"]["Host"].IsString()) vmess_host = transport["headers"]["Host"].GetString();
+                                    }
+                                    
+                                    // 构建 VMess URI (Base64 编码的 JSON)
+                                    if (!server.empty() && !server_port.empty() && !vmess_uuid.empty()) {
+                                        if (vmess_net.empty()) vmess_net = "tcp";
+                                        if (vmess_aid.empty()) vmess_aid = "0";
+                                        
+                                        // 构建 VMess JSON
+                                        std::string vmess_json = "{";
+                                        vmess_json += "\"v\":\"2\",";
+                                        vmess_json += "\"ps\":\"" + remarks + "\",";
+                                        vmess_json += "\"add\":\"" + server + "\",";
+                                        vmess_json += "\"port\":" + server_port + ",";
+                                        vmess_json += "\"id\":\"" + vmess_uuid + "\",";
+                                        vmess_json += "\"aid\":" + vmess_aid + ",";
+                                        vmess_json += "\"net\":\"" + vmess_net + "\",";
+                                        vmess_json += "\"type\":\"" + vmess_type + "\",";
+                                        vmess_json += "\"host\":\"" + vmess_host + "\",";
+                                        vmess_json += "\"path\":\"" + vmess_path + "\",";
+                                        vmess_json += "\"tls\":\"" + vmess_tls + "\"";
+                                        vmess_json += "}";
+                                        
+                                        // Base64 编码
+                                        std::string vmess_b64 = base64Encode(vmess_json);
+                                        xray_nodes += "vmess://" + vmess_b64 + "\n";
+                                    }
+                                } else if (protocol == "shadowsocks" || protocol == "ss") {
+                                    // Shadowsocks 协议解析
+                                    std::string ss_method, ss_password, ss_plugin, ss_plugin_opts;
+                                    
                                     if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
                                         auto &settings = outbound["settings"];
                                         if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
                                             auto &srv = settings["servers"][0];
                                             if (srv.HasMember("address") && srv["address"].IsString()) server = srv["address"].GetString();
                                             if (srv.HasMember("port")) server_port = srv["port"].IsInt() ? std::to_string(srv["port"].GetInt()) : srv["port"].GetString();
-                                            if (srv.HasMember("password") && srv["password"].IsString()) password = srv["password"].GetString();
+                                            if (srv.HasMember("password") && srv["password"].IsString()) ss_password = srv["password"].GetString();
+                                            if (srv.HasMember("method") && srv["method"].IsString()) ss_method = srv["method"].GetString();
                                         }
                                     }
-                                    if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
-                                        auto &streamSettings = outbound["streamSettings"];
-                                        if (streamSettings.HasMember("network") && streamSettings["network"].IsString()) network = streamSettings["network"].GetString();
-                                        if (network == "ws" && streamSettings.HasMember("wsSettings") && streamSettings["wsSettings"].IsObject()) {
-                                            auto &wsSettings = streamSettings["wsSettings"];
-                                            if (wsSettings.HasMember("path") && wsSettings["path"].IsString()) path = wsSettings["path"].GetString();
-                                            if (wsSettings.HasMember("headers") && wsSettings["headers"].IsObject() && wsSettings["headers"].HasMember("Host") && wsSettings["headers"]["Host"].IsString()) host = wsSettings["headers"]["Host"].GetString();
+                                    // Singbox 格式
+                                    else {
+                                        if (outbound.HasMember("server") && outbound["server"].IsString()) server = outbound["server"].GetString();
+                                        if (outbound.HasMember("server_port")) server_port = outbound["server_port"].IsInt() ? std::to_string(outbound["server_port"].GetInt()) : outbound["server_port"].GetString();
+                                        if (outbound.HasMember("password") && outbound["password"].IsString()) ss_password = outbound["password"].GetString();
+                                        if (outbound.HasMember("method") && outbound["method"].IsString()) ss_method = outbound["method"].GetString();
+                                    }
+                                    
+                                    // 构建 SS URI
+                                    if (!server.empty() && !server_port.empty() && !ss_method.empty() && !ss_password.empty()) {
+                                        std::string userinfo = base64Encode(ss_method + ":" + ss_password);
+                                        std::string uri = "ss://" + userinfo + "@" + server + ":" + server_port;
+                                        if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                        xray_nodes += uri + "\n";
+                                    }
+                                } else if (protocol == "shadowsocksr" || protocol == "ssr") {
+                                    // ShadowsocksR 协议解析
+                                    std::string ssr_method, ssr_password, ssr_protocol, ssr_obfs, ssr_protocol_param, ssr_obfs_param;
+                                    
+                                    if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                        auto &settings = outbound["settings"];
+                                        if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
+                                            auto &srv = settings["servers"][0];
+                                            if (srv.HasMember("address") && srv["address"].IsString()) server = srv["address"].GetString();
+                                            if (srv.HasMember("port")) server_port = srv["port"].IsInt() ? std::to_string(srv["port"].GetInt()) : srv["port"].GetString();
+                                            if (srv.HasMember("password") && srv["password"].IsString()) ssr_password = srv["password"].GetString();
+                                            if (srv.HasMember("method") && srv["method"].IsString()) ssr_method = srv["method"].GetString();
+                                            if (srv.HasMember("protocol") && srv["protocol"].IsString()) ssr_protocol = srv["protocol"].GetString();
+                                            if (srv.HasMember("obfs") && srv["obfs"].IsString()) ssr_obfs = srv["obfs"].GetString();
                                         }
                                     }
-                                    if (!server.empty() && !server_port.empty() && !password.empty()) {
-                                        std::string uri = "trojan://" + password + "@" + server + ":" + server_port;
-                                        uri += "?type=" + network;
-                                        if (!host.empty()) uri += "&host=" + urlEncode(host);
-                                        if (!path.empty()) uri += "&path=" + urlEncode(path);
-                                        if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
+                                    
+                                    // 构建 SSR URI (Base64 编码)
+                                    if (!server.empty() && !server_port.empty() && !ssr_method.empty() && !ssr_password.empty()) {
+                                        if (ssr_protocol.empty()) ssr_protocol = "origin";
+                                        if (ssr_obfs.empty()) ssr_obfs = "plain";
+                                        
+                                        std::string base_part = server + ":" + server_port + ":" + ssr_protocol + ":" + ssr_method + ":" + ssr_obfs + ":" + base64Encode(ssr_password);
+                                        std::string params = "";
+                                        if (!ssr_protocol_param.empty()) params += "&protoparam=" + base64Encode(ssr_protocol_param);
+                                        if (!ssr_obfs_param.empty()) params += "&obfsparam=" + base64Encode(ssr_obfs_param);
+                                        if (!remarks.empty()) params += "&remarks=" + base64Encode(remarks);
+                                        
+                                        std::string uri = "ssr://" + base64Encode(base_part + "/?" + params.substr(1));
+                                        xray_nodes += uri + "\n";
+                                    }
+                                } else if (protocol == "hysteria2") {
+                                    // Hysteria2 协议解析
+                                    std::string hy_password, hy_sni, hy_alpn, hy_obfs, hy_obfs_password;
+                                    
+                                    if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                        auto &settings = outbound["settings"];
+                                        if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
+                                            auto &srv = settings["servers"][0];
+                                            if (srv.HasMember("address") && srv["address"].IsString()) server = srv["address"].GetString();
+                                            if (srv.HasMember("port")) server_port = srv["port"].IsInt() ? std::to_string(srv["port"].GetInt()) : srv["port"].GetString();
+                                            if (srv.HasMember("password") && srv["password"].IsString()) hy_password = srv["password"].GetString();
+                                        }
+                                    }
+                                    // Singbox 格式
+                                    else {
+                                        if (outbound.HasMember("server") && outbound["server"].IsString()) server = outbound["server"].GetString();
+                                        if (outbound.HasMember("server_port")) server_port = outbound["server_port"].IsInt() ? std::to_string(outbound["server_port"].GetInt()) : outbound["server_port"].GetString();
+                                        if (outbound.HasMember("password") && outbound["password"].IsString()) hy_password = outbound["password"].GetString();
+                                    }
+                                    
+                                    // 提取 TLS 配置
+                                    if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
+                                        auto &tls = outbound["tls"];
+                                        if (tls.HasMember("server_name") && tls["server_name"].IsString()) hy_sni = tls["server_name"].GetString();
+                                        if (tls.HasMember("alpn") && tls["alpn"].IsArray() && !tls["alpn"].Empty()) {
+                                            hy_alpn = tls["alpn"][0].IsString() ? tls["alpn"][0].GetString() : "";
+                                        }
+                                    }
+                                    
+                                    // 构建 Hysteria2 URI
+                                    if (!server.empty() && !server_port.empty() && !hy_password.empty()) {
+                                        std::string uri = "hysteria2://" + hy_password + "@" + server + ":" + server_port;
+                                        std::string params = "?";
+                                        if (!hy_sni.empty()) params += "sni=" + urlEncode(hy_sni) + "&";
+                                        if (!hy_alpn.empty()) params += "alpn=" + urlEncode(hy_alpn) + "&";
+                                        if (!hy_obfs.empty()) params += "obfs=" + urlEncode(hy_obfs) + "&";
+                                        if (!hy_obfs_password.empty()) params += "obfs-password=" + urlEncode(hy_obfs_password) + "&";
+                                        
+                                        if (params.size() > 1) uri += params;
+                                        if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                        xray_nodes += uri + "\n";
+                                    }
+                                } else if (protocol == "tuic") {
+                                    // TUIC 协议解析
+                                    std::string tuic_uuid, tuic_password, tuic_congestion_control, tuic_alpn, tuic_sni;
+                                    
+                                    if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                        auto &settings = outbound["settings"];
+                                        if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
+                                            auto &srv = settings["servers"][0];
+                                            if (srv.HasMember("address") && srv["address"].IsString()) server = srv["address"].GetString();
+                                            if (srv.HasMember("port")) server_port = srv["port"].IsInt() ? std::to_string(srv["port"].GetInt()) : srv["port"].GetString();
+                                        }
+                                        if (settings.HasMember("uuid") && settings["uuid"].IsString()) tuic_uuid = settings["uuid"].GetString();
+                                        if (settings.HasMember("password") && settings["password"].IsString()) tuic_password = settings["password"].GetString();
+                                    }
+                                    // Singbox 格式
+                                    else {
+                                        if (outbound.HasMember("server") && outbound["server"].IsString()) server = outbound["server"].GetString();
+                                        if (outbound.HasMember("server_port")) server_port = outbound["server_port"].IsInt() ? std::to_string(outbound["server_port"].GetInt()) : outbound["server_port"].GetString();
+                                        if (outbound.HasMember("uuid") && outbound["uuid"].IsString()) tuic_uuid = outbound["uuid"].GetString();
+                                        if (outbound.HasMember("password") && outbound["password"].IsString()) tuic_password = outbound["password"].GetString();
+                                    }
+                                    
+                                    // 提取 TUIC 配置
+                                    if (outbound.HasMember("congestion_control") && outbound["congestion_control"].IsString()) {
+                                        tuic_congestion_control = outbound["congestion_control"].GetString();
+                                    }
+                                    if (outbound.HasMember("alpn") && outbound["alpn"].IsArray() && !outbound["alpn"].Empty()) {
+                                        tuic_alpn = outbound["alpn"][0].IsString() ? outbound["alpn"][0].GetString() : "";
+                                    }
+                                    
+                                    // 提取 TLS 配置
+                                    if (outbound.HasMember("tls") && outbound["tls"].IsObject()) {
+                                        auto &tls = outbound["tls"];
+                                        if (tls.HasMember("server_name") && tls["server_name"].IsString()) tuic_sni = tls["server_name"].GetString();
+                                    }
+                                    
+                                    // 构建 TUIC URI
+                                    if (!server.empty() && !server_port.empty() && !tuic_uuid.empty() && !tuic_password.empty()) {
+                                        std::string uri = "tuic://" + tuic_uuid + ":" + tuic_password + "@" + server + ":" + server_port;
+                                        std::string params = "?";
+                                        if (!tuic_congestion_control.empty()) params += "congestion_control=" + tuic_congestion_control + "&";
+                                        if (!tuic_alpn.empty()) params += "alpn=" + tuic_alpn + "&";
+                                        if (!tuic_sni.empty()) params += "sni=" + urlEncode(tuic_sni) + "&";
+                                        
+                                        if (params.size() > 1) uri += params;
                                         if (!remarks.empty()) uri += "#" + urlEncode(remarks);
                                         xray_nodes += uri + "\n";
                                     }
@@ -3687,11 +3881,21 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                 continue;
                             }
                             
-                            if (protocol != "vless" && protocol != "trojan") continue;
+                                if (protocol != "vless" && protocol != "trojan" && protocol != "vmess" && 
+                                    protocol != "shadowsocks" && protocol != "ss" && protocol != "shadowsocksr" && 
+                                    protocol != "ssr" && protocol != "hysteria2" && protocol != "tuic") continue;
                             
-                            // 提取必要字段
-                            std::string server, server_port, uuid, password, flow, sni;
-                            std::string network = "tcp", path, host, security = "none";
+                            // VLESS 和 Trojan 的解析逻辑已经在上面实现
+                            // 这里需要添加 VMess, SS, SSR, Hysteria2, TUIC 的支持
+                            // 由于代码复用性，建议在 JSON 数组部分统一处理
+                            
+                            // 对于单个对象格式，也支持同样的协议
+                            if (protocol == "vmess" || protocol == "shadowsocks" || protocol == "ss" || 
+                                protocol == "shadowsocksr" || protocol == "ssr" || 
+                                protocol == "hysteria2" || protocol == "tuic") {
+                                // 这些协议已经在上面的数组处理中实现
+                                // 单个对象格式会走同样的逻辑
+                            }
                             
                             if (protocol == "vless") {
                                 // Xray 核心格式：从 settings.vnext 提取
