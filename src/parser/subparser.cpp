@@ -3895,6 +3895,10 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                 // 单个对象格式会走同样的逻辑
                             }
                             
+                            // 提取必要字段
+                            std::string server, server_port, uuid, password, flow, sni;
+                            std::string network = "tcp", path, host, security = "none";
+                            
                             if (protocol == "vless") {
                                 // Xray 核心格式：从 settings.vnext 提取
                                 if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
