@@ -3860,6 +3860,34 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                         if (!remarks.empty()) uri += "#" + urlEncode(remarks);
                                         xray_nodes += uri + "\n";
                                     }
+                                } else if (protocol == "trojan") {
+                                // Xray 核心格式：从 settings.servers 提取
+                                if (outbound.HasMember("settings") && outbound["settings"].IsObject()) {
+                                    auto &settings = outbound["settings"];
+                                    if (settings.HasMember("servers") && settings["servers"].IsArray() && !settings["servers"].Empty()) {
+                                        auto &srv = settings["servers"][0];
+                                        if (srv.HasMember("address") && srv["address"].IsString()) server = srv["address"].GetString();
+                                        if (srv.HasMember("port")) server_port = srv["port"].IsInt() ? std::to_string(srv["port"].GetInt()) : srv["port"].GetString();
+                                        if (srv.HasMember("password") && srv["password"].IsString()) password = srv["password"].GetString();
+                                    }
+                                }
+                                // Xray 核心格式：从 streamSettings 提取
+                                if (outbound.HasMember("streamSettings") && outbound["streamSettings"].IsObject()) {
+                                    auto &streamSettings = outbound["streamSettings"];
+                                    if (streamSettings.HasMember("network") && streamSettings["network"].IsString()) network = streamSettings["network"].GetString();
+                                    if (streamSettings.HasMember("tlsSettings") && streamSettings["tlsSettings"].IsObject()) {
+                                        auto &tlsSettings = streamSettings["tlsSettings"];
+                                        if (tlsSettings.HasMember("serverName") && tlsSettings["serverName"].IsString()) sni = tlsSettings["serverName"].GetString();
+                                    }
+                                }
+                                // 构建 Trojan URI
+                                if (!server.empty() && !server_port.empty() && !password.empty()) {
+                                    std::string uri = "trojan://" + urlEncode(password) + "@" + server + ":" + server_port;
+                                    uri += "?security=tls";
+                                    if (!sni.empty()) uri += "&sni=" + urlEncode(sni);
+                                    if (!network.empty() && network != "tcp") uri += "&type=" + network;
+                                    if (!remarks.empty()) uri += "#" + urlEncode(remarks);
+                                    xray_nodes += uri + "\n";
                                 }
                             }
                         }
