@@ -1,0 +1,1 @@
+{ "github_pat": "", "deploy_ssh": "", "project_root": "D:/Users/wh898/PycharmProjects/subconverter", "github_repo": "whua898/subconverter", "test_url": "http://localhost:25500/sub", "subscription_url": "https://example.com/your-subscription", "max_iterations": 100, "error_threshold": 3 }
