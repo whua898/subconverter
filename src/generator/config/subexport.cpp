@@ -1393,17 +1393,21 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
             case ProxyType::Trojan:
                 if (!trojan)
                     continue;
-                proxyStr = "trojan://" + password + "@" + hostname + ":" + port + "?allowInsecure=" +
-                           (x.AllowInsecure.get() ? "1" : "0");
+                // FIX: emit standard type=ws format (v2rayN Trojan kernel requires this)
+                proxyStr = "trojan://" + password + "@" + hostname + ":" + port + "?security=tls";
                 if (!sni.empty()) {
                     proxyStr += "&sni=" + sni;
                 } else if (!host.empty()) {
                     proxyStr += "&sni=" + host;
                 }
                 if (transproto == "ws") {
-                    proxyStr += "&ws=1";
+                    proxyStr += "&type=ws";
+                    if (!host.empty())
+                        proxyStr += "&host=" + urlEncode(host);
                     if (!path.empty())
-                        proxyStr += "&wspath=" + urlEncode(path);
+                        proxyStr += "&path=" + urlEncode(path);
+                } else if (x.AllowInsecure.has_value()) {
+                    proxyStr += "&allowInsecure=" + (x.AllowInsecure.get() ? "1" : "0");
                 }
                 proxyStr += "#" + urlEncode(remark);
                 break;
