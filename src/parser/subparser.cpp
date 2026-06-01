@@ -3542,7 +3542,8 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                       sub.find("\n{\"remarks\"") != std::string::npos);
         }
         
-        if (!is_json) {
+        // 修复：跳过 Base64 解码（源已是标准 URI 协议头混合格式）
+        if (!is_json && sub.find("://") == std::string::npos) {
             sub = urlSafeBase64Decode(sub);
         }
         
