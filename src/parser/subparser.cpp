@@ -3525,8 +3525,14 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
         size_t first_char = sub_trimmed.find_first_of("[{");
         if (first_char != std::string::npos) {
             sub_trimmed = sub_trimmed.substr(first_char);
-            is_json = (sub_trimmed.find("[{\"") == 0 || 
-                      sub_trimmed.find("{\"") == 0);
+            // fix: BPB returns [\n    { (multi-line with whitespace), strip whitespace first
+            std::string sub_trimmed_no_ws;
+            for (char c : sub_trimmed) {
+                if (c != ' ' && c != '\t' && c != '\n' && c != '\r')
+                    sub_trimmed_no_ws += c;
+            }
+            is_json = (sub_trimmed_no_ws.find("[{\"") == 0 || 
+                      sub_trimmed_no_ws.find("{\"") == 0);
         }
         // 兼容原来的检测方式
         if (!is_json) {
