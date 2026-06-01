@@ -3702,7 +3702,7 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                         vmess_json += "}";
                                         
                                         // Base64 编码
-                                        std::string vmess_b64 = base64Encode(vmess_json);
+                                        std::string vmess_b64 = urlSafeBase64Encode(vmess_json);
                                         xray_nodes += "vmess://" + vmess_b64 + "\n";
                                     }
                                 } else if (protocol == "shadowsocks" || protocol == "ss") {
@@ -3729,7 +3729,7 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                     
                                     // 构建 SS URI
                                     if (!server.empty() && !server_port.empty() && !ss_method.empty() && !ss_password.empty()) {
-                                        std::string userinfo = base64Encode(ss_method + ":" + ss_password);
+                                        std::string userinfo = urlSafeBase64Encode(ss_method + ":" + ss_password);
                                         std::string uri = "ss://" + userinfo + "@" + server + ":" + server_port;
                                         if (!remarks.empty()) uri += "#" + urlEncode(remarks);
                                         xray_nodes += uri + "\n";
@@ -3756,13 +3756,11 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
                                         if (ssr_protocol.empty()) ssr_protocol = "origin";
                                         if (ssr_obfs.empty()) ssr_obfs = "plain";
                                         
-                                        std::string base_part = server + ":" + server_port + ":" + ssr_protocol + ":" + ssr_method + ":" + ssr_obfs + ":" + base64Encode(ssr_password);
+                                        std::string base_part = server + ":" + server_port + ":" + ssr_protocol + ":" + ssr_method + ":" + ssr_obfs + ":" + urlSafeBase64Encode(ssr_password);
                                         std::string params = "";
-                                        if (!ssr_protocol_param.empty()) params += "&protoparam=" + base64Encode(ssr_protocol_param);
-                                        if (!ssr_obfs_param.empty()) params += "&obfsparam=" + base64Encode(ssr_obfs_param);
-                                        if (!remarks.empty()) params += "&remarks=" + base64Encode(remarks);
+                                        if (!remarks.empty()) params += "&remarks=" + urlSafeBase64Encode(remarks);
                                         
-                                        std::string uri = "ssr://" + base64Encode(base_part + "/?" + params.substr(1));
+                                        std::string uri = "ssr://" + urlSafeBase64Encode(base_part + "/?" + params.substr(1));
                                         xray_nodes += uri + "\n";
                                     }
                                 } else if (protocol == "hysteria2") {
