@@ -3518,10 +3518,23 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes) {
         // 2. 单个完整配置文件：{"remarks":"...", "outbounds":[...], "inbounds":[...]}
         // 3. Singbox 格式：{"type":"vless","server":"...","server_port":...}
         // 4. Xray 核心格式：{"protocol":"vless","settings":{"vnext":[...]},"streamSettings":{...}}
-        bool is_json = (sub.find("[{\"") != std::string::npos || 
-                       sub.find("\n[{\"") != std::string::npos || 
-                       sub.find("{\"remarks\"") != std::string::npos || 
-                       sub.find("\n{\"remarks\"") != std::string::npos);
+        
+        // 检测 JSON 数组或对象格式，需要跳过空白字符
+        bool is_json = false;
+        std::string sub_trimmed = sub;
+        size_t first_char = sub_trimmed.find_first_of("[{");
+        if (first_char != std::string::npos) {
+            sub_trimmed = sub_trimmed.substr(first_char);
+            is_json = (sub_trimmed.find("[{\"") == 0 || 
+                      sub_trimmed.find("{\"") == 0);
+        }
+        // 兼容原来的检测方式
+        if (!is_json) {
+            is_json = (sub.find("[{\"") != std::string::npos || 
+                      sub.find("\n[{\"") != std::string::npos || 
+                      sub.find("{\"remarks\"") != std::string::npos || 
+                      sub.find("\n{\"remarks\"") != std::string::npos);
+        }
         
         if (!is_json) {
             sub = urlSafeBase64Decode(sub);
