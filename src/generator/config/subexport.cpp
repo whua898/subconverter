@@ -277,7 +277,13 @@ proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGroupCo
         scv.define(x.AllowInsecure);
         tfo.define(x.TCPFastOpen);
         singleproxy["name"] = x.Remark;
-        singleproxy["server"] = x.Hostname;
+        if (x.Hostname.find(':') != std::string::npos && x.Hostname.front() != '[') {
+            // IPv6 address must be quoted in clash YAML to avoid ":" being treated as flow mapping separator
+            singleproxy["server"] = "[" + x.Hostname + "]";
+            singleproxy["server"].SetStyle(YAML::ScalarStyle::DoubleQuoted);
+        } else {
+            singleproxy["server"] = x.Hostname;
+        }
         singleproxy["port"] = x.Port;
 
         switch (x.Type) {
