@@ -980,10 +980,10 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
         switch (x.Type) {
             case ProxyType::Shadowsocks:
                 if (surge_ver >= 3 || surge_ver == -3) {
-                    proxy = "ss, " + hostname + ", " + port + ", encrypt-method=" + method + ", password=" +
+                    proxy = "ss, " + wrapIPv6Host(hostname) + ", " + port + ", encrypt-method=" + method + ", password=" +
                             password;
                 } else {
-                    proxy = "custom, " + hostname + ", " + port + ", " + method + ", " + password +
+                    proxy = "custom, " + wrapIPv6Host(hostname) + ", " + port + ", " + method + ", " + password +
                             ", https://github.com/pobizhe/SSEncrypt/raw/master/SSEncrypt.module";
                 }
                 if (!plugin.empty()) {
@@ -1001,7 +1001,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             case ProxyType::VMess:
                 if (surge_ver < 4 && surge_ver != -3)
                     continue;
-                proxy = "vmess, " + hostname + ", " + port + ", username=" + id + ", tls=" +
+                proxy = "vmess, " + wrapIPv6Host(hostname) + ", " + port + ", username=" + id + ", tls=" +
                         (tlssecure ? "true" : "false") + ", vmess-aead=" + (x.AlterId == 0 ? "true" : "false");
                 if (tlssecure && !tls13.is_undef())
                     proxy += ", tls13=" + std::string(tls13 ? "true" : "false");
@@ -1051,7 +1051,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 local_port++;
                 break;
             case ProxyType::SOCKS5:
-                proxy = "socks5, " + hostname + ", " + port;
+                proxy = "socks5, " + wrapIPv6Host(hostname) + ", " + port;
                 if (!username.empty())
                     proxy += ", username=" + username;
                 if (!password.empty())
@@ -1061,14 +1061,14 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 break;
             case ProxyType::HTTPS:
                 if (surge_ver == -3) {
-                    proxy = "https, " + hostname + ", " + port + ", " + username + ", " + password;
+                    proxy = "https, " + wrapIPv6Host(hostname) + ", " + port + ", " + username + ", " + password;
                     if (!scv.is_undef())
                         proxy += ", skip-cert-verify=" + scv.get_str();
                     break;
                 }
                 [[fallthrough]];
             case ProxyType::HTTP:
-                proxy = "http, " + hostname + ", " + port;
+                proxy = "http, " + wrapIPv6Host(hostname) + ", " + port;
                 if (!username.empty())
                     proxy += ", username=" + username;
                 if (!password.empty())
@@ -1080,7 +1080,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             case ProxyType::Trojan:
                 if (surge_ver < 4 && surge_ver != -3)
                     continue;
-                proxy = "trojan, " + hostname + ", " + port + ", password=" + password;
+                proxy = "trojan, " + wrapIPv6Host(hostname) + ", " + port + ", password=" + password;
                 if (x.SnellVersion != 0)
                     proxy += ", version=" + std::to_string(x.SnellVersion);
                 if (!sni.empty()) {
@@ -1099,7 +1099,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                     proxy += ", skip-cert-verify=" + scv.get_str();
                 break;
             case ProxyType::Snell:
-                proxy = "snell, " + hostname + ", " + port + ", psk=" + password;
+                proxy = "snell, " + wrapIPv6Host(hostname) + ", " + port + ", psk=" + password;
                 if (!obfs.empty()) {
                     proxy += ", obfs=" + obfs;
                     if (!host.empty())
@@ -1111,7 +1111,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             case ProxyType::Hysteria2:
                 if (surge_ver < 4)
                     continue;
-                proxy = "hysteria2, " + hostname + ", " + port + ", password=" + password;
+                proxy = "hysteria2, " + wrapIPv6Host(hostname) + ", " + port + ", password=" + password;
                 if (!x.DownMbps.empty()) {
                     if (!isNumeric(x.DownMbps)) {
                         size_t pos = x.DownMbps.find(search);
@@ -1134,7 +1134,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             case ProxyType::AnyTLS:
                 if (surge_ver < 4)
                     continue;
-                proxy = "anytls, " + hostname + ", " + port + ", password=" + password;
+                proxy = "anytls, " + wrapIPv6Host(hostname) + ", " + port + ", password=" + password;
                 if (!x.SNI.empty())
                     proxy += ", sni=" + x.SNI;
                 if (!scv.is_undef())
@@ -1502,7 +1502,7 @@ std::string proxyToSSSub(std::string base_conf, std::vector<Proxy> &nodes, extra
         rapidjson::Value proxy(rapidjson::kObjectType);
         proxy.CopyFrom(base, alloc)
                 | AddMemberOrReplace("remarks", rapidjson::Value(remark.c_str(), remark.size()), alloc)
-                | AddMemberOrReplace("server", rapidjson::Value(hostname.c_str(), hostname.size()), alloc)
+                | AddMemberOrReplace("server", rapidjson::Value(quoteIPv6ForYAML(hostname).c_str(), quoteIPv6ForYAML(hostname).size()), alloc)
                 | AddMemberOrReplace("server_port", rapidjson::Value(x.Port), alloc)
                 | AddMemberOrReplace("method", rapidjson::Value(method.c_str(), method.size()), alloc)
                 | AddMemberOrReplace("password", rapidjson::Value(password.c_str(), password.size()), alloc)
