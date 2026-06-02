@@ -1077,10 +1077,34 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 if (!scv.is_undef())
                     proxy += ", skip-cert-verify=" + scv.get_str();
                 break;
+            case ProxyType::VLESS:
+                if (surge_ver < 4 && surge_ver != -3)
+                    continue;
+                proxy = "vless, " + wrapIPv6Host(hostname) + ", " + port + ", username=" + id;
+                if (!sni.empty())
+                    proxy += ", sni=" + sni;
+                else if (!host.empty())
+                    proxy += ", sni=" + host;
+                if (tlssecure) {
+                    proxy += ", tls=true";
+                    if (!scv.is_undef())
+                        proxy += ", skip-cert-verify=" + scv.get_str();
+                } else {
+                    proxy += ", tls=false";
+                }
+                if (transproto == "ws") {
+                    proxy += ", ws=true, ws-path=" + path;
+                    if (!host.empty())
+                        headers.push_back("Host:\"" + host + "\"");
+                    if (!headers.empty())
+                        proxy += ", ws-headers=" + join(headers, "|");
+                }
+                break;
             case ProxyType::Trojan:
                 if (surge_ver < 4 && surge_ver != -3)
                     continue;
                 proxy = "trojan, " + wrapIPv6Host(hostname) + ", " + port + ", password=" + password;
+
                 if (x.SnellVersion != 0)
                     proxy += ", version=" + std::to_string(x.SnellVersion);
                 if (!sni.empty()) {
@@ -1667,6 +1691,34 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
                 if (ext.nodelist)
                     proxyStr = "socks://" + urlSafeBase64Encode(proxyStr);
                 break;
+            case ProxyType::VLESS:
+                proxyStr = x.Remark + " = vless, " + wrapIPv6Host(hostname) + ", " + port + ", " + method + ", \"" +
+                           id + "\", group=" + x.Group;
+                if (tlssecure) {
+                    proxyStr += ", over-tls=true, tls-host=" + host;
+                    if (!scv.is_undef())
+                        proxyStr += ", certificate=" + std::string(scv.get() ? "0" : "1");
+                }
+                if (transproto == "ws") {
+                    proxyStr += ", obfs=ws, obfs-path=\"" + path + "\", obfs-header=\"Host: " + host + "\"";
+                }
+                if (ext.nodelist)
+                    proxyStr = "vless://" + urlSafeBase64Encode(proxyStr);
+                break;
+            case ProxyType::Trojan:
+                proxyStr = x.Remark + " = trojan, " + wrapIPv6Host(hostname) + ", " + port + ", " + method + ", \"" +
+                           password + "\", group=" + x.Group;
+                if (tlssecure) {
+                    proxyStr += ", over-tls=true, tls-host=" + host;
+                    if (!scv.is_undef())
+                        proxyStr += ", certificate=" + std::string(scv.get() ? "0" : "1");
+                }
+                if (transproto == "ws") {
+                    proxyStr += ", obfs=ws, obfs-path=\"" + path + "\", obfs-header=\"Host: " + host + "\"";
+                }
+                if (ext.nodelist)
+                    proxyStr = "trojan://" + urlSafeBase64Encode(proxyStr);
+                break;
             default:
                 continue;
         }
@@ -1681,6 +1733,7 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
 
     ini.set_current_section("POLICY");
     ini.erase_section();
+
 
     for (const ProxyGroupConfig &x: extra_proxy_group) {
         string_array filtered_nodelist;
@@ -2205,6 +2258,25 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Rulese
                         username +
                         ", pass=" + password;
                 break;
+            case ProxyType::VLESS:
+                proxy = x.Remark + ", vless, vless://" + id + "@" + wrapIPv6Host(hostname) + ":" + port;
+                if (!path.empty())
+                    proxy += "?path=" + urlEncode(path);
+                if (!host.empty())
+                    proxy += (path.empty() ? "?host=" : "&host=") + urlEncode(host);
+                proxy += (path.empty() && host.empty() ? "?" : "&") + "network=" + transproto;
+                if (tlssecure == "true") {
+                    proxy += "&tls.servername=" + urlEncode(host);
+                }
+                break;
+            case ProxyType::Trojan:
+                proxy = x.Remark + ", trojan, trojan://" + password + "@" + wrapIPv6Host(hostname) + ":" + port;
+                proxy += "?network=" + transproto;
+                if (tlssecure == "true" && !host.empty())
+                    proxy += "&tls.servername=" + urlEncode(host);
+                if (!path.empty())
+                    proxy += "&path=" + urlEncode(path);
+                break;
             default:
                 continue;
         }
@@ -2230,6 +2302,7 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Rulese
             default:
                 continue;
         }
+
 
         for (const auto &y: x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, false, ext);
