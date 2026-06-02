@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <regex>
 #include <iostream>
 #include <numeric>
 #include <cmath>
@@ -53,6 +54,14 @@ static std::string wrapIPv6Host(const std::string &h) {
     return "[" + h + "]";
 }
 
+
+static std::string quoteIPv6ForYAML(const std::string &h) {
+    // IPv6 literal contains ":" which collides with YAML flow mapping separators.
+    // Wrap in brackets to make yaml-cpp auto-quote the value as a single scalar.
+    if (h.empty() || h.front() == '[') return h;
+    if (h.find(':') == std::string::npos) return h;
+    return "[" + h + "]";
+}
 
 std::string
 vmessLinkConstruct(const std::string &remarks, const std::string &add, const std::string &port, const std::string &type,
@@ -277,13 +286,7 @@ proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGroupCo
         scv.define(x.AllowInsecure);
         tfo.define(x.TCPFastOpen);
         singleproxy["name"] = x.Remark;
-        if (x.Hostname.find(':') != std::string::npos && x.Hostname.front() != '[') {
-            // IPv6 address must be quoted in clash YAML to avoid ":" being treated as flow mapping separator
-            singleproxy["server"] = "[" + x.Hostname + "]";
-            singleproxy["server"].SetStyle(YAML::ScalarStyle::DoubleQuoted);
-        } else {
-            singleproxy["server"] = x.Hostname;
-        }
+        singleproxy["server"] = quoteIPv6ForYAML(x.Hostname);
         singleproxy["port"] = x.Port;
 
         switch (x.Type) {
