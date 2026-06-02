@@ -2,7 +2,7 @@
 #define VERSION_H_INCLUDED
 
 #ifndef VERSION
-#define VERSION "v0.9.9"
+#define VERSION "v1.1.1"
 #endif
 
 #endif // VERSION_H_INCLUDED

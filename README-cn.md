@@ -43,38 +43,32 @@
 
 * * *
 
-  # - arch: aarch64
-  #   artifact: subconverter_aarch64
-  #   os: ubuntu-latest
-  ```
-- 编辑 [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml) 文件，取消注释以下部分：
-  ```yaml
-  # - platform: linux/arm/v7
-  #   os: ubuntu-latest
-  # - platform: linux/arm64
-  #   os: ubuntu-latest
-  ```
+## 版本记录
 
-* * *
+### v1.1.1 (2026-06-03)
 
-## 新增内容
+-   **版本升级**：正式版本号从 v0.9.9 升级至 v1.1.1
+-   **IPv6 修复**：修复 `subexport.cpp` 中 IPv6 地址未正确包裹 `[...]` 的问题，所有格式中的 IPv6 必须带 `[...]`
+-   **格式激活**：修复 Surge、Mellow、Loon 等次级格式输出为 0 字节的问题，解决容器内 `fetchFile` 对 `base/` 路径的解析故障
+-   **HTTP 400 消除**：修复 Sing-box/Mihomo 等现代格式的生成失败问题，确保 `isInScope` 安全检查不再误杀合法路径
+-   **临时文件清理**：清理项目中积累的审计脚本、测试文件、临时数据文件等 50+ 个临时文件
 
+<details>
+<summary><b>历史版本</b></summary>
 2021/10/1
 
 -   新增 [配置文件](#配置文件) 中 `[advanced]` 部分的说明
 -   修改调整文档中的多处描述
 -   更换文档中失效的外部链接
 
-<details>
-<summary><b>更新历史</b></summary>
 2020/12/9
 
 -   新增 [特别用法](#特别用法) 中 [规则转换](#规则转换) 的说明
--   修改 [配置文件](#配置文件) 中的 `clash_proxy_group` 为 `proxy_group` ，并增加修改描述与示例
--   修改 [配置文件](#配置文件) 中 `[ruleset]` 部分的 `surge_ruleset` 为 `ruleset ` ，并增加修改示例
--   修改 [外部配置](#外部配置) 中 `surge_ruleset` 为 `ruleset ` 
--   新增 [外部配置](#外部配置) 中 `add_emoji` 和 `remove_old_emoji` 
--   修改 [外部配置](#外部配置) 中 `proxy_group` 和  `ruleset ` 的描述与示例
+-   修改 [配置文件](#配置文件) 中的 `clash_proxy_group` 为 `proxy_group`
+-   修改 [配置文件](#配置文件) 中 `[ruleset]` 部分的 `surge_ruleset` 为 `ruleset`
+-   修改 [外部配置](#外部配置) 中 `surge_ruleset` 为 `ruleset`
+-   新增 [外部配置](#外部配置) 中 `add_emoji` 和 `remove_old_emoji`
+-   修改 [外部配置](#外部配置) 中 `proxy_group` 和 `ruleset` 的描述与示例
 -   调整 [简易用法](#简易用法) 与 [进阶用法](#进阶用法) 中的部分描述
 -   更换文档中失效的外部链接
 
@@ -83,7 +77,7 @@
 -   新增 [支持类型](#支持类型) 中 `mixed` & `auto` 参数
 -   新增 [进阶链接](#进阶链接) 中多个调用参数的说明
 -   新增 [配置文件](#配置文件) 中 `[userinfo]` 部分的描述
--   新增 [配置文件](#配置文件) 中 `[common]`&`[node_pref]`&`[server]` 中多个参数的描述
+-   新增 [配置文件](#配置文件) 中 `[common]` & `[node_pref]` & `[server]` 中多个参数的描述
 -   修改 [进阶链接](#进阶链接) 中 `url` 参数的说明
 
 2020/04/29
@@ -109,7 +103,6 @@
 
 -   新增 [进阶链接](#进阶链接) 中关于 `append_type` `append_info` `expand` `dev_id` `interval` `strict` 等参数的描述
 
-</details>
 
 * * *
 
