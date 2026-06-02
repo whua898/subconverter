@@ -287,8 +287,24 @@ std::string getRuleset(RESPONSE_CALLBACK_ARGS) {
 }
 
 void checkExternalBase(const std::string &path, std::string &dest) {
-    if (isLink(path) || (startsWith(path, global.basePath) && fileExist(path)))
+    // V5.0 SOP: 放宽 basePath 前缀检查 & 增加多路径尝试
+    // 原始路径: mellow.conf
+    // basePath 拼接: base/mellow.conf
+    // 相对路径: ./mellow.conf
+    if (isLink(path) || fileExist(path)) {
         dest = path;
+        return;
+    }
+    // 尝试 prepend global.basePath
+    if (!global.basePath.empty()) {
+        std::string try1 = global.basePath + "/" + path;
+        if (fileExist(try1)) { dest = try1; return; }
+    }
+    // 尝试 ./ 前缀
+    std::string try2 = "./" + path;
+    if (fileExist(try2)) { dest = try2; return; }
+    // 回退：仍用原始路径
+    dest = path;
 }
 
 std::string subconverter(RESPONSE_CALLBACK_ARGS) {
