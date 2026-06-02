@@ -291,7 +291,11 @@ void checkExternalBase(const std::string &path, std::string &dest) {
     // 原始路径: mellow.conf
     // basePath 拼接: base/mellow.conf
     // 相对路径: ./mellow.conf
-    if (isLink(path) || fileExist(path)) {
+    if (isLink(path)) {
+        dest = path;
+        return;
+    }
+    if (fileExist(path)) {
         dest = path;
         return;
     }
@@ -303,8 +307,7 @@ void checkExternalBase(const std::string &path, std::string &dest) {
     // 尝试 ./ 前缀
     std::string try2 = "./" + path;
     if (fileExist(try2)) { dest = try2; return; }
-    // 回退：仍用原始路径
-    dest = path;
+    // 不设置 dest，保持原值（安全检查失败）
 }
 
 std::string subconverter(RESPONSE_CALLBACK_ARGS) {
