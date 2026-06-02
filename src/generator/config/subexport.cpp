@@ -1301,7 +1301,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
         switch (x.Type) {
             case ProxyType::Shadowsocks:
                 if (ss) {
-                    proxyStr = "ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + hostname + ":" + port;
+                    proxyStr = "ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + wrapIPv6Host(hostname) + ":" + port;
                     if (!plugin.empty() && !pluginopts.empty()) {
                         proxyStr += "/?plugin=" + urlEncode(plugin + ";" + pluginopts);
                     }
@@ -1330,7 +1330,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                     if (std::find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() &&
                         protocol == "origin" && obfs == "plain")
                         proxyStr =
-                                "ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + hostname + ":" +
+                                "ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + wrapIPv6Host(hostname) + ":" +
                                 port +
                                 "#" + urlEncode(remark);
                 } else
@@ -1633,7 +1633,7 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
                 break;
             case ProxyType::Shadowsocks:
                 if (ext.nodelist) {
-                    proxyStr = "ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + hostname + ":" + port;
+                    proxyStr = "ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + wrapIPv6Host(hostname) + ":" + port;
                     if (!plugin.empty() && !pluginopts.empty()) {
                         proxyStr += "/?plugin=" + urlEncode(plugin + ";" + pluginopts);
                     }
@@ -1862,7 +1862,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             case ProxyType::VMess:
                 if (method == "auto")
                     method = "chacha20-ietf-poly1305";
-                proxyStr = "vmess = " + hostname + ":" + port + ", method=" + method + ", password=" + id;
+                proxyStr = "vmess = " + wrapIPv6Host(hostname) + ":" + port + ", method=" + method + ", password=" + id;
                 if (x.AlterId != 0)
                     proxyStr += ", aead=false";
                 if (tlssecure && !tls13.is_undef())
@@ -1881,7 +1881,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                     method = "none";
                 else
                     method = "none";
-                proxyStr = "vless = " + hostname + ":" + port + ", method=" + method + ", password=" + id;
+                proxyStr = "vless = " + wrapIPv6Host(hostname) + ":" + port + ", method=" + method + ", password=" + id;
                 if (x.AlterId != 0)
                     proxyStr += ", aead=false";
                 if (tlssecure && !tls13.is_undef())
@@ -1897,7 +1897,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                 break;
             case ProxyType::Shadowsocks:
                 proxyStr =
-                        "shadowsocks = " + hostname + ":" + port + ", method=" + method + ", password=" + password;
+                        "shadowsocks = " + wrapIPv6Host(hostname) + ":" + port + ", method=" + method + ", password=" + password;
                 if (!plugin.empty()) {
                     switch (hash_(plugin)) {
                         case "simple-obfs"_hash:
@@ -1930,7 +1930,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                 break;
             case ProxyType::ShadowsocksR:
                 proxyStr =
-                        "shadowsocks = " + hostname + ":" + port + ", method=" + method + ", password=" + password +
+                        "shadowsocks = " + wrapIPv6Host(hostname) + ":" + port + ", method=" + method + ", password=" + password +
                         ", ssr-protocol=" + protocol;
                 if (!protoparam.empty())
                     proxyStr += ", ssr-protocol-param=" + protoparam;
@@ -1941,7 +1941,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             case ProxyType::HTTP:
             case ProxyType::HTTPS:
                 proxyStr =
-                        "http = " + hostname + ":" + port + ", username=" + (username.empty() ? "none" : username) +
+                        "http = " + wrapIPv6Host(hostname) + ":" + port + ", username=" + (username.empty() ? "none" : username) +
                         ", password=" + (password.empty() ? "none" : password);
                 if (tlssecure) {
                     proxyStr += ", over-tls=true";
@@ -1952,7 +1952,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                 }
                 break;
             case ProxyType::Trojan:
-                proxyStr = "trojan = " + hostname + ":" + port + ", password=" + password;
+                proxyStr = "trojan = " + wrapIPv6Host(hostname) + ":" + port + ", password=" + password;
                 if (tlssecure) {
                     proxyStr += ", over-tls=true, tls-host=" + host;
                     if (!tls13.is_undef())
@@ -1962,7 +1962,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                 }
                 break;
             case ProxyType::SOCKS5:
-                proxyStr = "socks5 = " + hostname + ":" + port;
+                proxyStr = "socks5 = " + wrapIPv6Host(hostname) + ":" + port;
                 if (!username.empty() && !password.empty()) {
                     proxyStr += ", username=" + username + ", password=" + password;
                     if (tlssecure) {
@@ -2213,12 +2213,12 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Rulese
             case ProxyType::Shadowsocks:
                 if (!x.Plugin.empty())
                     continue;
-                proxy = x.Remark + ", ss, ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + hostname +
+                proxy = x.Remark + ", ss, ss://" + urlSafeBase64Encode(method + ":" + password) + "@" + wrapIPv6Host(hostname) +
                         ":" +
                         port;
                 break;
             case ProxyType::VMess:
-                proxy = x.Remark + ", vmess1, vmess1://" + id + "@" + hostname + ":" + port;
+                proxy = x.Remark + ", vmess1, vmess1://" + id + "@" + wrapIPv6Host(hostname) + ":" + port;
                 if (!path.empty())
                     proxy += path;
                 proxy += "?network=" + transproto;
