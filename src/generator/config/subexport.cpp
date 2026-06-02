@@ -47,6 +47,13 @@ bool isNumeric(const std::string &str) {
 }
 
 
+static std::string wrapIPv6Host(const std::string &h) {
+    if (h.empty() || h.front() == '[') return h;
+    if (h.find(':') == std::string::npos) return h;
+    return "[" + h + "]";
+}
+
+
 std::string
 vmessLinkConstruct(const std::string &remarks, const std::string &add, const std::string &port, const std::string &type,
                    const std::string &id, const std::string &aid, const std::string &net, const std::string &path,
@@ -1306,7 +1313,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
             case ProxyType::Hysteria2:
                 if (!hysteria2)
                     continue;
-                proxyStr = "hysteria2://" + password + "@" + hostname + ":" + port + (ports.empty() ? "" : "," + ports)
+                proxyStr = "hysteria2://" + password + "@" + wrapIPv6Host(hostname) + ":" + port + (ports.empty() ? "" : "," + ports)
                            + "?insecure=" +
                            (x.AllowInsecure.get() ? "1" : "0");
                 if (!obfsparam.empty()) {
@@ -1333,7 +1340,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
             // std::string alpn = getUrlArg(addition, "alpn");
                 proxyStr = "vless://" + (id.empty()
                                ? "00000000-0000-0000-0000-000000000000"
-                               : id) + "@" + hostname + ":" + port+"?";
+                               : id) + "@" + wrapIPv6Host(hostname) + ":" + port+"?";
                 if (!tls.empty()) {
                     if (!pbk.empty()) {
                         proxyStr += "&security=reality";
@@ -1394,7 +1401,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                 if (!trojan)
                     continue;
                 // FIX: emit standard type=ws format (v2rayN Trojan kernel requires this)
-                proxyStr = "trojan://" + password + "@" + hostname + ":" + port + "?security=tls";
+                proxyStr = "trojan://" + password + "@" + wrapIPv6Host(hostname) + ":" + port + "?security=tls";
                 if (!sni.empty()) {
                     proxyStr += "&sni=" + sni;
                 } else if (!host.empty()) {
@@ -1414,7 +1421,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
             case ProxyType::TUIC:
                 if (!tuic)
                     continue;
-                proxyStr = "tuic://" + x.UserId + ":" + x.Password + "@" + hostname + ":" + port + "?";
+                proxyStr = "tuic://" + x.UserId + ":" + x.Password + "@" + wrapIPv6Host(hostname) + ":" + port + "?";
                 if (!x.CongestionControl.empty())
                     proxyStr += "&congestion_control=" + x.CongestionControl;
                 if (!x.ServerName.empty())
