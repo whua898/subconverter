@@ -2261,14 +2261,15 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Rulese
             case ProxyType::VLESS:
                 proxy = x.Remark + ", vless, vless://" + id + "@" + wrapIPv6Host(hostname) + ":" + port;
                 if (!path.empty())
-                    proxy += "?path=" + urlEncode(path);
+                    proxy += std::string("?path=") + urlEncode(path);
                 if (!host.empty())
-                    proxy += (path.empty() ? "?host=" : "&host=") + urlEncode(host);
-                proxy += (path.empty() && host.empty() ? "?" : "&") + "network=" + transproto;
+                    proxy += std::string(path.empty() ? "?host=" : "&host=") + urlEncode(host);
+                proxy += std::string(path.empty() && host.empty() ? "?" : "&") + "network=" + transproto;
                 if (tlssecure == "true") {
                     proxy += "&tls.servername=" + urlEncode(host);
                 }
                 break;
+
             case ProxyType::Trojan:
                 proxy = x.Remark + ", trojan, trojan://" + password + "@" + wrapIPv6Host(hostname) + ":" + port;
                 proxy += "?network=" + transproto;
