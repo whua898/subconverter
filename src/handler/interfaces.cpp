@@ -60,33 +60,47 @@ struct UAProfile {
 };
 
 const std::vector<UAProfile> UAMatchList = {
-    {"ClashForAndroid", "\\/([0-9.]+)", "2.0", "clash", true},
-    {"ClashForAndroid", "\\/([0-9.]+)R", "", "clashr", false},
-    {"ClashForAndroid", "", "", "clash", false},
-    {"ClashforWindows", "\\/([0-9.]+)", "0.11", "clash", true},
-    {"ClashforWindows", "", "", "clash", false},
+    /// Clash / Mihomo 客户端 (简化版本判断)
+    {"ClashForAndroid", "", "", "clash", true},
+    {"ClashforWindows", "", "", "clash", true},
     {"clash-verge", "", "", "clash", true},
     {"ClashX Pro", "", "", "clash", true},
-    {"ClashX", "\\/([0-9.]+)", "0.13", "clash", true},
+    {"ClashX", "", "", "clash", true},
+    {"ClashMeta", "", "", "clash", true},
     {"Clash", "", "", "clash", true},
+    {"Stash", "", "", "clash", true},
+    {"MihomoParty", "", "", "clash", true},
+    {"Hiddify", "", "", "clash", true},
+    {"ClashR", "", "", "clashr"},
+    /// Sing-box 客户端
+    {"SFA", "", "", "singbox"},          /// sing-box for Android
+    {"SFI", "", "", "singbox"},          /// sing-box for iOS
+    {"SFM", "", "", "singbox"},          /// sing-box for macOS
+    {"HiddifyNext", "", "", "singbox"},
+    {"Flora", "", "", "singbox"},
+    {"sing-box", "", "", "singbox"},
+    /// V2Ray 客户端
     {"Kitsunebi", "", "", "v2ray"},
+    {"Qv2ray", "", "", "v2ray"},
+    {"V2rayU", "", "", "v2ray"},
+    {"V2RayX", "", "", "v2ray"},
+    {"V2rayNG", "", "", "v2ray"},
+    {"NekoBox", "", "", "v2ray"},
+    /// VLESS/多协议客户端
+    {"Streisand", "", "", "vless"},
+    /// 其他现代客户端
     {"Loon", "", "", "loon"},
     {"Pharos", "", "", "mixed"},
     {"Potatso", "", "", "mixed"},
+    {"Shadowrocket", "", "", "mixed"},
     {"Quantumult%20X", "", "", "quanx"},
     {"Quantumult", "", "", "quan"},
-    {"Qv2ray", "", "", "v2ray"},
-    {"Shadowrocket", "", "", "mixed"},
     {"Surfboard", "", "", "surfboard"},
-    {"Surge", "\\/([0-9.]+).*x86", "906", "surge", false, 4}, /// Surge for Mac (supports VMess)
-    {"Surge", "\\/([0-9.]+).*x86", "368", "surge", false, 3},
-    /// Surge for Mac (supports new rule types and Shadowsocks without plugin)
-    {"Surge", "\\/([0-9.]+)", "1419", "surge", false, 4}, /// Surge iOS 4 (first version)
-    {"Surge", "\\/([0-9.]+)", "900", "surge", false, 3}, /// Surge iOS 3 (approx)
-    {"Surge", "", "", "surge", false, 2}, /// any version of Surge as fallback
     {"Trojan-Qt5", "", "", "trojan"},
-    {"V2rayU", "", "", "v2ray"},
-    {"V2RayX", "", "", "v2ray"}
+    /// Surge (简化正则)
+    {"Surge", "\\/([0-9.]+)", "1419", "surge", false, 4}, /// Surge iOS 4+
+    {"Surge", "\\/([0-9.]+)", "900", "surge", false, 3},  /// Surge iOS 3+
+    {"Surge", "", "", "surge", false, 2}                   /// any Surge as fallback
 };
 
 bool verGreaterEqual(const std::string &src_ver, const std::string &target_ver) {
@@ -317,8 +331,11 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS) {
     std::string argTarget = getUrlArg(argument, "target"), argSurgeVer = getUrlArg(argument, "ver");
     tribool argClashNewField = getUrlArg(argument, "new_name");
     int intSurgeVer = !argSurgeVer.empty() ? to_int(argSurgeVer, 3) : 3;
-    if (argTarget == "auto")
+    if (argTarget == "auto") {
         matchUserAgent(request.headers["User-Agent"], argTarget, argClashNewField, intSurgeVer);
+        if (argTarget == "auto") // 兜底：自动识别失败时默认 clash
+            argTarget = "clash";
+    }
 
     /// don't try to load groups or rulesets when generating simple subscriptions
     bool lSimpleSubscription = false;
