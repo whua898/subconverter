@@ -19,25 +19,25 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux 架构（multiarch/alpine 支持的全部架构）
+          # 默认只编译 amd64，如需其他架构删除行首 # 即可
           - arch: amd64
             artifact: subconverter_linux64
             os: ubuntu-latest
-          - arch: i386
-            artifact: subconverter_linux32
-            os: ubuntu-latest
-          - arch: armv7
-            artifact: subconverter_armv7
-            os: ubuntu-latest
-          - arch: aarch64
-            artifact: subconverter_aarch64
-            os: ubuntu-latest
-          - arch: ppc64le
-            artifact: subconverter_ppc64le
-            os: ubuntu-latest
-          - arch: s390x
-            artifact: subconverter_s390x
-            os: ubuntu-latest
+          # - arch: i386
+          #   artifact: subconverter_linux32
+          #   os: ubuntu-latest
+          # - arch: armv7
+          #   artifact: subconverter_armv7
+          #   os: ubuntu-latest
+          # - arch: aarch64
+          #   artifact: subconverter_aarch64
+          #   os: ubuntu-latest
+          # - arch: ppc64le
+          #   artifact: subconverter_ppc64le
+          #   os: ubuntu-latest
+          # - arch: s390x
+          #   artifact: subconverter_s390x
+          #   os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     name: Linux ${{ matrix.arch }} Build
     steps:
