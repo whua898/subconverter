@@ -17,14 +17,14 @@
 
 **默认仅编译 linux/amd64 版本**，如需其他架构按下面操作：
 
-编辑 [.github/workflows/build.yml](.github/workflows/build.yml)，在 matrix 中找到以下注释部分，删除每行开头的 `#` 即可启用对应架构：
+编辑 [.github/workflows/build.yml](.github/workflows/build.yml)，在 matrix 中找到以下注释部分，删除每行开头的 `#` 即可启用对应架构（`multiarch/alpine` 支持的全部 6 种架构均已编译通过，可直接使用）：
+
 ```yaml
-# - arch: armv7       # ← 删掉此行的 #
-#   artifact: subconverter_armv7
-#   os: ubuntu-latest
-# - arch: aarch64     # ← 删掉此行的 #
-#   artifact: subconverter_aarch64
-#   os: ubuntu-latest
+# - arch: i386          artifact: subconverter_linux32
+# - arch: armv7         artifact: subconverter_armv7
+# - arch: aarch64       artifact: subconverter_aarch64
+# - arch: ppc64le       artifact: subconverter_ppc64le
+# - arch: s390x         artifact: subconverter_s390x
 ```
 
 * * *
