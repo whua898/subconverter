@@ -13,33 +13,19 @@
 
 * * *
 
-## 自用构建优化说明
+## 构建版本说明
 
-**重要说明**：针对自用转换器的编译优化改动
+**默认仅编译 linux/amd64 版本**，如需其他架构按下面操作：
 
-为了加快自用编译速度，项目中进行了以下优化改动：
-
-1. **工作流文件** ([.github/workflows/build.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/build.yml), [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml)) 中注释掉了ARM架构相关的构建任务以节省时间
-
-### 如何重新启用ARM架构构建
-
-**重新启用ARM架构构建**：
-- 编辑 [.github/workflows/build.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/build.yml) 文件，取消注释以下部分：
-  ```yaml
-  # - arch: armv7
-  #   artifact: subconverter_armv7
-  #   os: ubuntu-latest
-  # - arch: aarch64
-  #   artifact: subconverter_aarch64
-  #   os: ubuntu-latest
-  ```
-- 编辑 [.github/workflows/docker.yml](file:///D:/Users/wh898/PycharmProjects/subconverter/.github/workflows/docker.yml) 文件，取消注释以下部分：
-  ```yaml
-  # - platform: linux/arm/v7
-  #   os: ubuntu-latest
-  # - platform: linux/arm64
-  #   os: ubuntu-latest
-  ```
+编辑 [.github/workflows/build.yml](.github/workflows/build.yml)，在 matrix 中找到以下注释部分，删除每行开头的 `#` 即可启用对应架构：
+```yaml
+# - arch: armv7       # ← 删掉此行的 #
+#   artifact: subconverter_armv7
+#   os: ubuntu-latest
+# - arch: aarch64     # ← 删掉此行的 #
+#   artifact: subconverter_aarch64
+#   os: ubuntu-latest
+```
 
 * * *
 
