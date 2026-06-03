@@ -31,6 +31,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: Linux ${{ matrix.arch }} Build
     steps:
+    - name: Set up QEMU for cross-arch builds
+      if: ${{ matrix.arch != 'amd64' }}
+      uses: docker/setup-qemu-action@v3
+
     - name: Checkout base
       uses: actions/checkout@v6
 
